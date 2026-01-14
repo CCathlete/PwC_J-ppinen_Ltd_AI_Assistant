@@ -17,13 +17,13 @@ ASSISTANT_ID = os.getenv("ASSISTANT_ID")  # Optional.
 if not OPENWEBUI_API_KEY or not OPENAI_API_KEY:
     raise ValueError("Please set OPENWEBUI_API_KEY and OPENAI_API_KEY in your .env file")
 
-headers = {"Authorization": f"Bearer {OPENWEBUI_API_KEY}"}
 
 def main() -> None:
     """
     We're using a synchronous pattern since we want low latency response.
     """
 
+    headers: dict[str, str] = {"Authorization": f"Bearer {OPENWEBUI_API_KEY}"}
 
     with httpx.Client(base_url=OPENWEBUI_URL, headers=headers, timeout=60) as client:
         resp: Response = client.get("/api/knowledge-bases")
