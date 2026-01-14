@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PwC-assistant"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "returns",
+    "pydantic",
+    "dependency-injector",
+    "httpx",
+    "structlog",
+    "dotenv",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[project.scripts]
+validate-assistant = "src.control.main:main"
+fine-tune-rag = "infra.fine_tune_rag.main:main"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+mypy_path = ["stubs"]
