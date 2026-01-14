@@ -1,0 +1,83 @@
+model_list:
+# - model_name: gpt-4
+#   litellm_params:
+#     model: openai/gpt-4o
+#     api_key: "os.environ/OPENAI_API_KEY"
+
+# - model_name: claude
+#   litellm_params:
+#     model: anthropic/claude-3-5-sonnet-20240620
+#     api_key: "os.environ/ANTHROPIC_API_KEY"
+
+- model_name: llama
+  litellm_params:
+    model: github/Llama-4-Scout-17B-16E-Instruct
+    api_key: "os.environ/GITHUB_TOKEN"
+    api_base: "https://models.inference.ai.azure.com"
+
+- model_name: ms-phi
+  litellm_params:
+    model: github/Phi-4-reasoning
+    api_key: "os.environ/GITHUB_TOKEN"
+    api_base: "https://models.inference.ai.azure.com"
+
+- model_name: ministral-3b
+  litellm_params:
+    model: github/Ministral-3B
+    api_key: "os.environ/GITHUB_TOKEN"
+    api_base: "https://models.inference.ai.azure.com"
+
+- model_name: gpt-4-1-mini
+  litellm_params:
+    model: github/gpt-4.1-mini
+    api_key: "os.environ/GITHUB_TOKEN"
+    api_base: "https://models.inference.ai.azure.com"
+
+- model_name: gemini-2.5-flash
+  litellm_params:
+    model: "gemini/gemini-2.5-flash"
+    api_key: "os.environ/GOOGLE_AI_STUDIO_API_KEY"
+
+# - model_name: ollama-gemma2
+#   litellm_params:
+#     model: "ollama/gemma2"
+#     api_key: ""
+#     api_base: "http://ollama_llm:11434"
+
+- model_name: Olmo-3.1-32b-think
+  litellm_params:
+    model: "openrouter/allenai/olmo-3.1-32b-think:free"
+    api_key: "os.environ/OPENROUTER_API_KEY"
+
+- model_name: xiaomi-mimo-v2-flash
+  litellm_params:
+    model: "openrouter/xiaomi/mimo-v2-flash:free"
+    api_key: "os.environ/OPENROUTER_API_KEY"
+
+- model_name: mistral-devstral
+  litellm_params:
+    model: "openrouter/mistralai/devstral-2512:free"
+    api_key: "os.environ/OPENROUTER_API_KEY"
+
+- model_name: nvidia-nemotron-3-nano
+  litellm_params:
+    model: "openrouter/nvidia/nemotron-3-nano-30b-a3b:free"
+    api_key: "os.environ/OPENROUTER_API_KEY"
+
+- model_name: gpt-oss-20b
+  litellm_params:
+    model: "huggingface/openai/gpt-oss-20b"
+    api_key: "os.environ/HUGGINGFACE_TOKEN"
+    api_base: "https://router.huggingface.co"
+
+- model_name: gpt-oss-120b
+  litellm_params:
+    model: "huggingface/openai/gpt-oss-120b"
+    api_key: "os.environ/HUGGINGFACE_TOKEN"
+    api_base: "https://router.huggingface.co"
+
+- model_name: qwen-7b-instruct
+  litellm_params:
+    model: "huggingface/Qwen/Qwen2.5-7B-Instruct"
+    api_key: "os.environ/HUGGINGFACE_TOKEN"
+    api_base: "https://router.huggingface.co/v1"
