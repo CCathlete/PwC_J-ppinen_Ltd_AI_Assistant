@@ -10,7 +10,7 @@ class Env:
     vars: dict[str, str | bool | int | float] = field(default_factory=dict)
 
     @safe
-    def load(self, path_to_dotenv: str | Path = ".") -> "Env":
+    def load(self, path_to_dotenv: str | Path = ".env") -> "Env":
         load_dotenv(dotenv_path=path_to_dotenv)
         loaded_vars = {
             k: self._parse_value(v)
