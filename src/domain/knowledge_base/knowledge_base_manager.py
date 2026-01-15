@@ -2,8 +2,8 @@
 
 from pathlib import Path
 from returns.future import FutureResult
-from ..infrastructure.fs import FileSystem
-from ..infrastructure.openwebui_connector import OpenWebUIConnector
+from ...infrastructure.fs import FileSystem
+from ...infrastructure.openwebui_connector import OpenWebUIConnector
 from .kb_config import KnowledgeBaseConfig
 
 class KnowledgeBaseManager:
