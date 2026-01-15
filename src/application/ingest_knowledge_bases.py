@@ -16,7 +16,7 @@ class KnowledgeBaseIngestionApp:
             tasks = []
             for folder in self.kb_manager.fs.list_subfolders(self.root):
                 # get files not yet embedded
-                new_files = self.kb_manager.fs.get_unembedded_files(folder)
+                new_files = self.kb_manager.fs.get_unembedded_files(folder, self.kb_manager.fetch_embedded_files())
                 if new_files:
                     # ingest only new files
                     tasks.append(self.kb_manager.ingest_files(folder, new_files).awaitable())

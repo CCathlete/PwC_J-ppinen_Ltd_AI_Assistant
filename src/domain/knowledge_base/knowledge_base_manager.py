@@ -11,10 +11,13 @@ class KnowledgeBaseManager:
     fs: IFileSystem
     connector: AIProvider
 
-    _embedded_files: dict[str, set[str]]
+    _embedded_files: dict[str, set[str]] # {kb_id: set(filepath_strs)}
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         object.__setattr__(self, "_embedded_files", {})
+    
+    def fetch_embedded_files(self) -> dict[str, set[str]]:
+        return self._embedded_files.copy()
 
     def ingest_folder(self, folder: Path) -> FutureResult[None, Exception]:
         config = KnowledgeBaseConfig.load(folder / "kbconfig.yaml")
