@@ -4,6 +4,7 @@ from dependency_injector import containers, providers
 from ..infrastructure.fs import FileSystem, IFileSystem
 from ..infrastructure.openwebui_connector import AIProvider
 from ..infrastructure.env import Env
+from ..infrastructure.logging import create_logger
 from ..domain.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
 from ..application.ingest_knowledge_bases import KnowledgeBaseIngestionProcess
 
@@ -21,6 +22,13 @@ class Container(containers.DeclarativeContainer):
 
     fs: providers.Singleton[IFileSystem] = providers.Singleton(FileSystem)
     connector: providers.Singleton[AIProvider] = providers.Singleton(AIProvider)
+
+    logger = providers.Singleton(
+    create_logger,
+    name="app",
+    log_dir=config.project_root.provided.joinpath("logs"),
+    logfile_size_limit_mb=config.logfile_size_limit_MB,
+    )
 
     # -------------------- Domain --------------------
     kb_manager: providers.Singleton[KnowledgeBaseManager] = providers.Singleton(
