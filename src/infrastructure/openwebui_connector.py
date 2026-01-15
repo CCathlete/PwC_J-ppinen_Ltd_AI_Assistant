@@ -4,13 +4,34 @@ from pathlib import Path
 import httpx
 from returns.future import FutureResult, future_safe
 from httpx import Response
+from dataclasses import dataclass
+from typing import Protocol
 
-class OpenWebUIConnector:
+
+@dataclass(frozen=True)
+class AIProvider(Protocol):
     """Encapsulates HTTP logic to create KBs and embed files."""
 
-    def __init__(self, base_url: str, token: str):
-        self.base_url = base_url
-        self.token = token
+    base_url: str
+    token: str
+
+    def _headers(self) -> dict:
+        ...
+
+    def create_kb(self, name: str, description: str, public: bool) -> FutureResult[str, Exception]:
+        """Create a new knowledge base."""
+        ...
+
+    def embed_file(self, kb_id: str, path: Path) -> FutureResult[None, Exception]:
+        """Upload a file and attach it to a KB."""
+        ...
+
+@dataclass(frozen=True)
+class OpenWebUIConnector(AIProvider):
+    """Encapsulates HTTP logic to create KBs and embed files."""
+
+    base_url: str
+    token: str
 
     def _headers(self) -> dict:
         return {"Authorization": f"Bearer {self.token}"}
