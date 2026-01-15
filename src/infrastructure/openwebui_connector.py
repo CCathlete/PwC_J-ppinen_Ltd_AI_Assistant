@@ -1,11 +1,10 @@
 # src/infrastructure/openwebui_connector.py
-
-from pathlib import Path
 import httpx
-from returns.future import FutureResult, future_safe
+from pathlib import Path
 from httpx import Response
-from dataclasses import dataclass
 from typing import Protocol
+from dataclasses import dataclass
+from returns.future import FutureResult, future_safe
 
 
 @dataclass(frozen=True)
@@ -47,7 +46,9 @@ class OpenWebUIConnector(AIProvider):
                     json={"name": name, "description": description, "public": public},
                 )
                 r.raise_for_status()
-                return r.json()["id"]
+
+                # return r.json()["id"]
+                return name # Using the name of the KB as its id if creation was successful.
 
         return _()
 
