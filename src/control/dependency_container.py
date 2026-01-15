@@ -1,12 +1,12 @@
 # src/control/dependency_container.py
 from dependency_injector import containers, providers
 
-from ..infrastructure.fs import FileSystem, IFileSystem
-from ..infrastructure.openwebui_connector import AIProvider
 from ..infrastructure.env import Env
 from ..infrastructure.logging import create_logger
-from ..domain.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
+from ..infrastructure.fs import FileSystem, IFileSystem
+from ..infrastructure.openwebui_connector import AIProvider
 from ..application.ingest_knowledge_bases import KnowledgeBaseIngestionProcess
+from ..domain.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
 
 
 class Container(containers.DeclarativeContainer):
@@ -17,7 +17,7 @@ class Container(containers.DeclarativeContainer):
     # -------------------- Infrastructure --------------------
     env: providers.Singleton[Env] = providers.Singleton(
         lambda path: Env().load(path).unwrap(),
-        config.dotenv_path  # e.g. ".env"
+        path=config.dotenv_path  # e.g. ".env"
     )
 
     fs: providers.Singleton[IFileSystem] = providers.Singleton(FileSystem)
@@ -35,6 +35,7 @@ class Container(containers.DeclarativeContainer):
         KnowledgeBaseManager,
         fs=fs,
         connector=connector,
+        logger=logger,
     )
 
     # -------------------- Application --------------------
@@ -42,6 +43,7 @@ class Container(containers.DeclarativeContainer):
         KnowledgeBaseIngestionProcess,
         kb_manager=kb_manager,
         root=config.kb_root,  # Path to KB root folder
+        logger=logger,
         env=env,
     )
 
