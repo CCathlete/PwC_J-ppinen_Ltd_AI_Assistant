@@ -6,15 +6,14 @@ import os
 
 @dataclass(frozen=True)
 class Env:
-    path_to_dotenv: str | Path = '.'
     vars: dict[str, str | bool | int | float] = field(default_factory=dict)
 
-    def load(self) -> "Env":
+    def load(self, path_to_dotenv: str | Path = '.') -> "Env":
         """Load .env file and return a new Env with vars populated."""
-        load_dotenv(dotenv_path=self.path_to_dotenv)
+        load_dotenv(dotenv_path=path_to_dotenv)
         loaded_vars = {k: self._parse_value(v) for k, v in os.environ.items()}
         # return a new instance since frozen=True
-        return Env(path_to_dotenv=self.path_to_dotenv, vars=loaded_vars)
+        return Env(vars=loaded_vars)
 
     @staticmethod
     def _parse_value(value: str) -> str | bool | int | float:
