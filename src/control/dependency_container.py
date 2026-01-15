@@ -15,7 +15,7 @@ class Container(containers.DeclarativeContainer):
 
     # -------------------- Infrastructure --------------------
     env: providers.Singleton[Env] = providers.Singleton(
-        lambda path: Env().load(path),
+        lambda path: Env().load(path).unwrap(),
         config.dotenv_path  # e.g. ".env"
     )
 
