@@ -13,8 +13,7 @@ class IFileSystem(Protocol):
 
     def get_unembedded_files(self, folder: Path, embedded_files: set[str]) -> list[Path]:
         """Return files in folder that are not yet embedded."""
-        files = self.list_files(folder, exclude=["kbconfig.yaml"])
-        return [f for f in files if f.name not in embedded_files]
+        ...
 
 class FileSystem:
     """Concrete FS helper."""
@@ -26,5 +25,7 @@ class FileSystem:
         return [f for f in folder.iterdir() if f.is_file() and f.name not in exclude]
 
     def get_unembedded_files(self, folder: Path, embedded_files: set[str]) -> list[Path]:
-        return [f for f in self.list_files(folder, exclude=["kbconfig.yaml"]) if f.name not in embedded_files]
+        """Return files in folder that are not yet embedded."""
+        files = self.list_files(folder, exclude=["kbconfig.yaml"])
+        return [f for f in files if f.name not in embedded_files]
 

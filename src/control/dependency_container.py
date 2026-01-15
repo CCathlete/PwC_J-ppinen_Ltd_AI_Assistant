@@ -1,10 +1,11 @@
 # src/control/dependency_container.py
 from dependency_injector import containers, providers
 
+# control/dependency_container.py
 from ..infrastructure.env import Env
 from ..infrastructure.logging import create_logger
 from ..infrastructure.fs import FileSystem, IFileSystem
-from ..infrastructure.openwebui_connector import AIProvider
+from ..infrastructure.openwebui_connector import AIProvider, OpenWebUIConnector
 from ..application.ingest_knowledge_bases import KnowledgeBaseIngestionProcess
 from ..domain.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
 
@@ -21,7 +22,14 @@ class Container(containers.DeclarativeContainer):
     )
 
     fs: providers.Singleton[IFileSystem] = providers.Singleton(FileSystem)
-    connector: providers.Singleton[AIProvider] = providers.Singleton(AIProvider)
+    
+    connector: providers.Singleton[AIProvider] = providers.Singleton(
+        OpenWebUIConnector,
+        # Makes sure that this is evaulated during runtime.
+        base_url=providers.Callable(lambda env: env.vars.get("OPENWEBUI_URL"), env),
+        token=providers.Callable(lambda env: env.vars.get("OPENWEBUI_TOKEN"), env),
+    )
+
 
     logger = providers.Singleton(
     create_logger,
