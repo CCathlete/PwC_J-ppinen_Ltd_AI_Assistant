@@ -210,3 +210,4 @@ __marimo__/
 *.env*
 **/*env.auto*
 *ai-rag/**
+**/*.tfstate*
