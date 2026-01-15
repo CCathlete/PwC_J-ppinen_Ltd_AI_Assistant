@@ -12,6 +12,7 @@ class KnowledgeBaseManager:
     fs: IFileSystem
     connector: AIProvider
     _embedded_files: dict[str, set[str]]  # {kb_id: set(filepath_strs)}
+    logger: logging.Logger
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "_embedded_files", {})
@@ -28,7 +29,7 @@ class KnowledgeBaseManager:
         try:
             config = KnowledgeBaseConfig.load(folder / "kbconfig.yaml")
         except Exception as e:
-            logging.exception("Failed to load kbconfig for folder '%s': %s", folder, e)
+            self.logger.exception("Failed to load kbconfig for folder '%s': %s", folder, e)
             return []
 
         kb_name = config.name
@@ -38,10 +39,14 @@ class KnowledgeBaseManager:
         if not files_to_embed:
             return []
 
-        # Create KB first if it does not exist
-        kb_id_future: FutureResult[str, Exception] = self.connector.create_kb(
-            config.name, config.description, config.public
-        )
+        kb_id_future: FutureResult[str, Exception]
+        if kb_name not in self._embedded_files:
+            # Create KB first if it does not exist
+            kb_id_future = self.connector.create_kb(
+                config.name, config.description, config.public
+            )
+        else:
+            kb_id_future = FutureResult.from_value(kb_name)
 
         @future_safe
         async def embed_file(file: Path, kb_id_future: FutureResult[str, Exception] = kb_id_future) -> None:
@@ -49,7 +54,7 @@ class KnowledgeBaseManager:
                 # After awaiting the future monad it returns a static monad so instead 
                 # of FutureResult we get IOResult.
                 # NOTE: We're awaiting here because we don't want to proceed before the kb is created.
-                io_res = await kb_id_future.awaitable()  # IOResult[str, Exception]
+                io_res: IOResult[str, Exception] = await kb_id_future.awaitable()
 
                 match io_res:
                     case IOResult(success=value):
@@ -58,7 +63,7 @@ class KnowledgeBaseManager:
                         embedded.add(file.name)
 
                     case IOFailure(failure=e):
-                        logging.exception(
+                        self.logger.exception(
                             "Failed to create KB for folder '%s': %s", folder, e
                         )
 
@@ -66,7 +71,7 @@ class KnowledgeBaseManager:
                         pass  # exhaustive catch-all
 
             except Exception as e:
-                logging.exception(
+                self.logger.exception(
                     "Failed to embed file '%s' in folder '%s': %s", file.name, folder, e
                 )
 
@@ -96,7 +101,7 @@ class KnowledgeBaseManager:
                     await self.connector.embed_file(kb_id, file).awaitable()
                     embedded.add(file.name)
                 except Exception as e:
-                    logging.exception(
+                    self.logger.exception(
                         "Failed to embed file '%s' in folder '%s': %s", file.name, folder, e
                     )
 

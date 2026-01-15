@@ -40,6 +40,8 @@ class OpenWebUIConnector(AIProvider):
         @future_safe
         async def _() -> str:
             async with httpx.AsyncClient() as client:
+
+
                 r: Response = await client.post(
                     f"{self.base_url}/api/v1/knowledge/",
                     headers={**self._headers(), "Content-Type": "application/json"},
