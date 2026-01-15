@@ -2,14 +2,15 @@
 
 from pathlib import Path
 from returns.future import FutureResult
-from ...infrastructure.fs import FileSystem
-from ...infrastructure.openwebui_connector import OpenWebUIConnector
+from ...infrastructure.fs import IFileSystem
+from ...infrastructure.openwebui_connector import AIProvider
 from .kb_config import KnowledgeBaseConfig
+from dataclasses import dataclass
 
+@dataclass(frozen=True)
 class KnowledgeBaseManager:
-    def __init__(self, fs: FileSystem, connector: OpenWebUIConnector):
-        self.fs = fs
-        self.connector = connector
+    fs: IFileSystem
+    connector: AIProvider
 
     def ingest_folder(self, folder: Path) -> FutureResult[None, Exception]:
         config = KnowledgeBaseConfig.load(folder / "kbconfig.yaml")
