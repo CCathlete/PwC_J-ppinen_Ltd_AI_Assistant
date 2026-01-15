@@ -1,12 +1,13 @@
 # src/control/app_controller.py
 import signal
-import logging
 import asyncio
+import logging
 import subprocess
-from dataclasses import dataclass
 from pathlib import Path
-from multiprocessing import Process
 from types import FrameType
+from dataclasses import dataclass
+from multiprocessing import Process
+from returns.future import FutureResult
 
 from .dependency_container import Container
 from .shutdown_coordinator import ShutdownCoordinator
@@ -59,7 +60,9 @@ class AppController:
             self.logger.info("OpenWebUI process shutdown")
 
     def _run_ingestion(self) -> None:
+
         self.logger.info("Starting KB ingestion process")
+
         # Instantiate DI container in this process
         container = Container()
         container.config.kb_root.from_value(self.kb_root)
@@ -69,7 +72,25 @@ class AppController:
         shutdown.install_signal_handlers()
 
         ingestion_app = container.ingestion_app()
-        # Run ingestion loop until shutdown signal
-        asyncio.run(ingestion_app.monitor_and_refresh_kbs(shutdown.stop_event))
+
+        async def resilient_loop() -> None:
+            while True:
+                try:
+                    # Run ingestion for all knowledge bases.
+                    # monitor_and_refresh_kbs returns FutureResult; we await it
+                    result: FutureResult[None, Exception] = ingestion_app.monitor_and_refresh_kbs(shutdown.stop_event)
+                    await result.awaitable()  # errors propagate as exceptions
+
+                except Exception as e:
+                    # Log errors but do NOT exit the loop
+                    self.logger.exception("Error during KB ingestion: %s", e)
+
+                # Check shutdown signal
+                if shutdown.stop_event.is_set():
+                    self.logger.info("Shutdown signal received, stopping ingestion loop")
+                    break
+
+        # Run the loop in the process until shutdown
+        asyncio.run(resilient_loop())
         self.logger.info("KB ingestion process shutdown")
 
