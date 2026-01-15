@@ -4,6 +4,21 @@ model_list:
     model: openai/gpt-4o-mini
     api_key: "os.environ/OPENAI_API_KEY"
 
+# Embedding model.
+# - model_name: text-embedding-3-large
+#   litellm_params:
+#     model: openai/text-embedding-3-large
+#     api_key: "os.environ/OPENAI_API_KEY"
+
+- model_name: nomic-embed-text
+  litellm_params:
+    provider: ollama
+    model: nomic-embed-text
+    api_base: "http://192.168.100.36:11434"
+
+
+
+
 # - model_name: claude
 #   litellm_params:
 #     model: anthropic/claude-3-5-sonnet-20240620
@@ -42,7 +57,7 @@ model_list:
 #   litellm_params:
 #     model: "ollama/gemma2"
 #     api_key: ""
-#     api_base: "http://ollama_llm:11434"
+#     api_base: "http://192.168.100.36:11434"
 
 - model_name: xiaomi-mimo-v2-flash
   litellm_params:
@@ -58,4 +73,3 @@ model_list:
   litellm_params:
     model: "openrouter/nvidia/nemotron-3-nano-30b-a3b:free"
     api_key: "os.environ/OPENROUTER_API_KEY"
-

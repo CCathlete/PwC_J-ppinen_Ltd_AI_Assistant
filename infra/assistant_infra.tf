@@ -205,7 +205,7 @@ resource "docker_container" "litellm" {
   }
 
   # Ensure it uses the config and remains quiet for production logs
-  command = ["--config", "/app/config.yaml", "--port", "4000"]
+  command = ["--config", "/app/config.yaml", "--port", "4000", "--debug"]
 
   env = concat(
     [
@@ -226,35 +226,36 @@ resource "docker_container" "litellm" {
   restart = "unless-stopped"
 }
 
+#Open web ui runs in a python package, this here is just a fallback.
 # --- Open WebUI Service ---
-resource "docker_container" "open_webui" {
-  name  = "open_webui"
-  image = "ghcr.io/open-webui/open-webui:main"
-
-  ports {
-    internal = 8080
-    external = 3000
-  }
-
-  env = [
-    "OPENAI_API_BASE_URL=http://litellm_proxy:4000/v1",
-    "OPENAI_API_KEY=sk-not-required", # LiteLLM handles the real keys
-    "ENABLE_OLLAMA=false",
-    "WEBUI_SECRET_KEY=${var.OPEN_WEBUI_SECRET_KEY}"
-  ]
-
-  volumes {
-    volume_name    = docker_volume.open_webui_data.name
-    container_path = "/app/backend/data"
-  }
-
-  networks_advanced {
-    name = docker_network.my_shared_network.name
-  }
-
-  restart    = "unless-stopped"
-  depends_on = [docker_container.litellm]
-}
+# resource "docker_container" "open_webui" {
+#   name  = "open_webui"
+#   image = "ghcr.io/open-webui/open-webui:main"
+#
+#   ports {
+#     internal = 8080
+#     external = 3000
+#   }
+#
+#   env = [
+#     "OPENAI_API_BASE_URL=http://litellm_proxy:4000/v1",
+#     "OPENAI_API_KEY=sk-not-required", # LiteLLM handles the real keys
+#     "ENABLE_OLLAMA=false",
+#     "WEBUI_SECRET_KEY=${var.OPEN_WEBUI_SECRET_KEY}"
+#   ]
+#
+#   volumes {
+#     volume_name    = docker_volume.open_webui_data.name
+#     container_path = "/app/backend/data"
+#   }
+#
+#   networks_advanced {
+#     name = docker_network.my_shared_network.name
+#   }
+#
+#   restart    = "unless-stopped"
+#   depends_on = [docker_container.litellm]
+# }
 
 # resource "docker_container" "ngrok" {
 #   image = "ngrok/ngrok:latest"
