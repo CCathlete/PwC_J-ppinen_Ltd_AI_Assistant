@@ -9,7 +9,7 @@ from ..domain.knowledge_base.kb_config import KnowledgeBaseConfig
 from ..infrastructure.env import Env
 
 @dataclass(frozen=True)
-class KnowledgeBaseIngestionApp:
+class KnowledgeBaseIngestionProcess:
     kb_manager: KnowledgeBaseManager
     root: Path
     env: Env  # injected singleton

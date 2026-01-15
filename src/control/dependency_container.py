@@ -5,7 +5,7 @@ from ..infrastructure.fs import FileSystem, IFileSystem
 from ..infrastructure.openwebui_connector import AIProvider
 from ..infrastructure.env import Env
 from ..domain.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
-from ..application.ingest_knowledge_bases import KnowledgeBaseIngestionApp
+from ..application.ingest_knowledge_bases import KnowledgeBaseIngestionProcess
 
 
 class Container(containers.DeclarativeContainer):
@@ -30,8 +30,8 @@ class Container(containers.DeclarativeContainer):
     )
 
     # -------------------- Application --------------------
-    ingestion_app: providers.Factory[KnowledgeBaseIngestionApp] = providers.Factory(
-        KnowledgeBaseIngestionApp,
+    ingestion_process: providers.Factory[KnowledgeBaseIngestionProcess] = providers.Factory(
+        KnowledgeBaseIngestionProcess,
         kb_manager=kb_manager,
         root=config.kb_root,  # Path to KB root folder
         env=env,
