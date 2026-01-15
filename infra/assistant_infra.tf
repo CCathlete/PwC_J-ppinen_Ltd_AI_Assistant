@@ -122,65 +122,72 @@ resource "docker_container" "postgres_data" {
   restart = "unless-stopped"
 }
 
-# # Ollama Initializer
-# resource "docker_container" "ollama_init" {
-#   name  = "ollama_init"
-#   image = "ollama/ollama:latest"
+# Ollama Initializer
+resource "docker_container" "ollama_init" {
+  name  = "ollama_init"
+  image = "ollama/ollama:latest"
 
-#   entrypoint = ["/bin/sh"]
-#   command = [
-#     "-c",
-#     <<-EOT
-#       # Start server in background
-#       ollama serve &
-#       PID=$!
+  entrypoint = ["/bin/sh"]
+  command = [
+    "-c",
+    <<-EOT
+      # Start server in background
+      ollama serve &
+      PID=$!
 
-#       # Wait for the server to fully start
-#       sleep 5
+      # Wait for the server to fully start
+      sleep 5
 
-#       # Run all pull commands (ensuring success)
-#       ${local.pull_commands_string}
+      # Run all pull commands (ensuring success)
+      ${local.pull_commands_string}
 
-#       # Kill the background server process
-#       kill $PID
-#     EOT
-#   ]
+      # Kill the background server process
+      kill $PID
+    EOT
+  ]
 
-#   volumes {
-#     volume_name    = docker_volume.ollama_models.name
-#     container_path = "/root/.ollama"
-#   }
-#   networks_advanced {
-#     name = docker_network.my_shared_network.name
-#   }
-#   depends_on = [docker_volume.ollama_models]
-#   must_run   = false
+  volumes {
+    volume_name    = docker_volume.ollama_models.name
+    container_path = "/root/.ollama"
+  }
+  networks_advanced {
+    name = docker_network.my_shared_network.name
+  }
+  depends_on = [docker_volume.ollama_models]
+  must_run   = false
 
-#   # Extracting logs if container is terminated.
-#   provisioner "local-exec" {
-#     when    = destroy
-#     command = "docker logs ${self.name} || true"
-#   }
-# }
+  # Extracting logs if container is terminated.
+  provisioner "local-exec" {
+    when    = destroy
+    command = "docker logs ${self.name} || true"
+  }
+}
 
-# # Ollama Service
-# resource "docker_container" "ollama" {
-#   name  = "ollama_llm"
-#   image = "ollama/ollama:latest"
-#   ports {
-#     internal = 11434
-#     external = 11434
-#   }
-#   volumes {
-#     volume_name    = docker_volume.ollama_models.name
-#     container_path = "/root/.ollama"
-#   }
-#   networks_advanced {
-#     name = docker_network.my_shared_network.name
-#   }
-#   depends_on = [docker_container.ollama_init]
-#   restart    = "unless-stopped"
-# }
+# Ollama Service
+resource "docker_container" "ollama" {
+  name  = "ollama_llm"
+  image = "ollama/ollama:latest"
+  ports {
+    internal = 11434
+    external = 11434
+  }
+  volumes {
+    volume_name    = docker_volume.ollama_models.name
+    container_path = "/root/.ollama"
+  }
+  networks_advanced {
+    name = docker_network.my_shared_network.name
+  }
+  depends_on = [docker_container.ollama_init]
+  restart    = "unless-stopped"
+
+  # --- GPU & Env ---
+  env = [
+    "OLLAMA_VULKAN=1"
+  ]
+
+  runtime = "nvidia"
+}
 
 # --- LiteLLM Proxy Service ---
 resource "docker_container" "litellm" {
@@ -249,35 +256,35 @@ resource "docker_container" "open_webui" {
   depends_on = [docker_container.litellm]
 }
 
-resource "docker_container" "ngrok" {
-  image = "ngrok/ngrok:latest"
-  name  = "ngrok"
-
-  volumes {
-    host_path      = "${path.cwd}/ngrok/config.yaml"
-    container_path = "/etc/ngrok.yml"
-  }
-
-  env = [
-    "NGROK_AUTHTOKEN=${var.NGROK_AUTHTOKEN}"
-  ]
-
-
-  command = ["start", "--all", "--config", "/etc/ngrok.yml"]
-
-  ports {
-    internal = 4040
-    external = 4040
-  }
-
-  networks_advanced {
-    name = docker_network.my_shared_network.name
-  }
-
-  restart    = "unless-stopped"
-  depends_on = [docker_container.open_webui]
-}
-
+# resource "docker_container" "ngrok" {
+#   image = "ngrok/ngrok:latest"
+#   name  = "ngrok"
+#
+#   volumes {
+#     host_path      = "${path.cwd}/ngrok/config.yaml"
+#     container_path = "/etc/ngrok.yml"
+#   }
+#
+#   env = [
+#     "NGROK_AUTHTOKEN=${var.NGROK_AUTHTOKEN}"
+#   ]
+#
+#
+#   command = ["start", "--all", "--config", "/etc/ngrok.yml"]
+#
+#   ports {
+#     internal = 4040
+#     external = 4040
+#   }
+#
+#   networks_advanced {
+#     name = docker_network.my_shared_network.name
+#   }
+#
+#   restart    = "unless-stopped"
+#   depends_on = [docker_container.open_webui]
+# }
+#
 # --- Outputs ---
 
 output "data_platform_access" {
