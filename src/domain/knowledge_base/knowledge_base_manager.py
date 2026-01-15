@@ -1,11 +1,13 @@
+# domain/knowledge_base/knowledge_base_manager.py
+import logging
 from pathlib import Path
 from dataclasses import dataclass
-from returns.future import FutureResult, future_safe
 from returns.io import IOFailure, IOResult
+from returns.future import FutureResult, future_safe
+
+from .kb_config import KnowledgeBaseConfig
 from ...infrastructure.fs import IFileSystem
 from ...infrastructure.openwebui_connector import AIProvider
-from .kb_config import KnowledgeBaseConfig
-import logging
 
 @dataclass(frozen=True)
 class KnowledgeBaseManager:
