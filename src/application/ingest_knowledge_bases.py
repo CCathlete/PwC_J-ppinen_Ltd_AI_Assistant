@@ -37,7 +37,7 @@ class KnowledgeBaseIngestionProcess:
 
                     try:
                         # Call ingest_folder which handles per-file embedding internally
-                        await self.kb_manager.ingest_folder(folder).awaitable()
+                        self.kb_manager.ingest_folder(folder)
                         self.logger.info("Finished embedding files for KB '%s'", kb_name)
                     except Exception as e:
                         self.logger.exception(
