@@ -13,11 +13,8 @@ model_list:
 - model_name: nomic-embed-text
   litellm_params:
     provider: ollama
-    model: nomic-embed-text
+    model: ollama/nomic-embed-text
     api_base: "http://192.168.100.36:11434"
-
-
-
 
 # - model_name: claude
 #   litellm_params:
