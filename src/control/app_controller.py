@@ -29,25 +29,41 @@ class AppController:
         return Process(target=self._run_ingestion, name="KBIngestion", daemon=False)
 
     def _run_openwebui(self) -> None:
+        import time
+
+        # Local state for the process loop
+        running = True
+
         def handle_signal(signum: int, _: FrameType | None) -> None:
+            nonlocal running
             self.logger.info(
-                f"Received signal {signum}, terminating OpenWebUI")
-            exit(0)
+                f"Received signal {signum}, stopping OpenWebUI watchdog")
+            running = False
 
         signal.signal(signal.SIGINT, handle_signal)
         signal.signal(signal.SIGTERM, handle_signal)
 
-        try:
-            self.logger.info("Starting OpenWebUI process")
-            subprocess.run(
-                ["open-webui", "serve", "--host", "0.0.0.0", "--port", "3000"],
-                check=True
-            )
-        except subprocess.CalledProcessError as e:
-            self.logger.error(
-                f"OpenWebUI process failed (Port already in use or crash). Code: {e.returncode}")
-        except Exception:
-            self.logger.exception("Unexpected error in OpenWebUI process")
+        self.logger.info("Starting OpenWebUI watchdog loop")
+
+        while running:
+            try:
+                # Running without capture_output to see the server logs
+                subprocess.run(
+                    ["open-webui", "serve", "--host", "0.0.0.0", "--port", "3000"],
+                    check=True
+                )
+            except subprocess.CalledProcessError as e:
+                self.logger.warning(
+                    f"OpenWebUI exited with code {e.returncode}. "
+                    "Likely port 3000 is occupied. Retrying in 5s..."
+                )
+            except Exception:
+                self.logger.exception("Unexpected error in OpenWebUI watchdog")
+
+            if running:
+                time.sleep(5)
+
+        self.logger.info("OpenWebUI process shutdown complete")
 
     def _run_ingestion(self) -> None:
         try:
