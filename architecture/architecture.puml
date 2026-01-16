@@ -1,0 +1,67 @@
+@startuml
+skinparam Monochrome true
+skinparam BoxPadding 20
+skinparam ParticipantPadding 15
+
+box "Control" #F9F9F9
+    participant main
+    participant DependencyContainer
+    participant AppController
+end box
+
+box "Application" #F0F7FF
+    participant KnowledgeBaseIngestionProcess
+end box
+
+box "Domain" #F0FFF0
+    participant KnowledgeBaseManager
+    participant KnowledgeBaseConfig
+end box
+
+box "Infrastructure" #FFF5E6
+    participant Env
+    participant FileSystem
+    participant OpenWebUIConnector
+    participant TruncatingFileHandler
+end box
+
+== Initialization ==
+
+main -> DependencyContainer : create_container()
+activate DependencyContainer
+DependencyContainer -> Env : load_config()
+DependencyContainer -> AppController : initialize(ingestion_process)
+main <- DependencyContainer : controller_instance
+deactivate DependencyContainer
+
+== Execution ==
+
+main -> AppController : start
+activate AppController
+
+loop Perpetual Cycle
+    AppController -> KnowledgeBaseIngestionProcess : execute_sync()
+    activate KnowledgeBaseIngestionProcess
+    
+    KnowledgeBaseIngestionProcess -> KnowledgeBaseManager : get_sync_plan()
+    activate KnowledgeBaseManager
+    
+    KnowledgeBaseManager -> Env : 
+    KnowledgeBaseManager -> FileSystem : list_local_files()
+    KnowledgeBaseManager -> KnowledgeBaseConfig : validate_settings()
+    
+    KnowledgeBaseManager --> KnowledgeBaseIngestionProcess : Result[SyncPlan]
+    deactivate KnowledgeBaseManager
+
+    KnowledgeBaseIngestionProcess -> OpenWebUIConnector : sync_files(plan)
+    OpenWebUIConnector -> TruncatingFileHandler : log_activity()
+    OpenWebUIConnector --> KnowledgeBaseIngestionProcess : Result[Success]
+    
+    KnowledgeBaseIngestionProcess --> AppController : Result[Done]
+    deactivate KnowledgeBaseIngestionProcess
+    
+    note over AppController : Handle Result monad\nWait for next interval
+end
+
+deactivate AppController
+@enduml

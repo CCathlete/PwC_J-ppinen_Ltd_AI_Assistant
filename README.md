@@ -1,6 +1,6 @@
 # <span style="color:#2E86C1">Knowledge Base Ingestion + UI server App</span>
 
-This repository contains the ingestion and synchronization engine for the news bias analysis platform. It monitors local file systems and ensures news data is embedded into Open WebUI knowledge bases.
+This repository contains the terraform infra setup, UI server and ingestion engine for RAG embeddings in OpenWebUI. It monitors local file systems and ensures the knowledge bases are up to date.
 
 ## <span style="color:#117A65">Architecture Overview</span>
 
@@ -34,6 +34,7 @@ Orchestrates the business flow through `KnowledgeBaseIngestionProcess`:
 The entry point and configuration hub:
 
 * **Main Module**: Application entry point.
+* **App Controller**: orchestrates the application use cases in iisolated processes.
 * **Dependency Container**: Utilizes `python-dependency-injector` for wiring.
 
 ---
@@ -41,9 +42,11 @@ The entry point and configuration hub:
 ## <span style="color:#117A65">Technical Stack</span>
 
 * **Runtime**: Python 3.11 (Compatibility with Open WebUI)
-* **Typing**: Strict typing with Pylance and Pydantic
+* **Typing**: Strict typing with Pylance and MyPy
+* **Dependency Injection**: `python-dependency-injector`
+* **Async IO**: `asyncio` and `httpx`
 * **Paradigm**: Functional, immutable, and monadic (`returns` library)
-* **Infrastructure**: Open WebUI, Ollama, Apache Spark, Postgres, MinIO
+* **Infrastructure**: Open WebUI, LiteLLM, Terraform, Docker
 
 ---
 
