@@ -1,4 +1,4 @@
-@startuml
+@startuml Embedding and Server App
 skinparam Monochrome false
 skinparam BoxPadding 20
 skinparam ParticipantPadding 15
@@ -27,11 +27,11 @@ end box
 
 == Initialization ==
 
-main -> DependencyContainer : create_container()
+main -> DependencyContainer : creation of container.
 activate DependencyContainer
-DependencyContainer -> Env : load_config()
-DependencyContainer -> AppController : initialize(ingestion_process)
-main <- DependencyContainer : controller_instance
+
+DependencyContainer -> Env : inject env vars to required classes.
+main <- DependencyContainer : back to main and injectted to controller.
 deactivate DependencyContainer
 
 == Execution ==
@@ -46,7 +46,6 @@ loop Embedding (until SIGKILL)
     KnowledgeBaseIngestionProcess -> KnowledgeBaseManager : trigger manager
     activate KnowledgeBaseManager
     
-    KnowledgeBaseManager -> Env : load env into singleton
     KnowledgeBaseManager -> FileSystem : monitor local filesystem
     KnowledgeBaseManager -> KnowledgeBaseConfig : knowledgebase metadata
     
@@ -63,7 +62,6 @@ end
 
 loop Server Monitoring (until SIGKILL)
     AppController -> KnowledgeBaseIngestionProcess : trigger server activation
-    KnowledgeBaseManager -> Env : load env into singleton
     KnowledgeBaseIngestionProcess -> OpenWebUIConnector : serve UI and monitor
 
     
