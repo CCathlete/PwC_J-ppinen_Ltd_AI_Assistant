@@ -21,91 +21,62 @@ class AppController:
     logger: logging.Logger
 
     def serve_openwebui_process(self) -> Process:
-        """Return a Process that runs the OpenWebUI server."""
-        try:
-            p = Process(target=self._run_openwebui,
-                        name="OpenWebUIServer", daemon=False)
-            return p
-        except Exception as e:
-            self.logger.exception("Failed to start openwebui server: %s", e)
-            raise
+        return Process(target=self._run_openwebui, name="OpenWebUIServer", daemon=False)
 
     def knowledge_base_ingestion_process(self) -> Process:
-        """Return a Process that runs the KB ingestion loop."""
-        try:
-            p = Process(target=self._run_ingestion,
-                        name="KBIngestion", daemon=False)
-            return p
-        except Exception as e:
-            self.logger.exception(
-                "Failed to start knowledge base ingestion process: %s", e)
-            raise
-
-    # ---------------- Internal helpers ----------------
+        return Process(target=self._run_ingestion, name="KBIngestion", daemon=False)
 
     def _run_openwebui(self) -> None:
-        self.logger.info("Starting OpenWebUI process")
-
-        # Setup signal handlers so CTRL+C / termination works
         def handle_signal(signum: int, _: FrameType | None) -> None:
             self.logger.info(
                 f"Received signal {signum}, terminating OpenWebUI")
-            # subprocess.run will exit on its own; we just log here
             exit(0)
 
         signal.signal(signal.SIGINT, handle_signal)
         signal.signal(signal.SIGTERM, handle_signal)
 
         try:
-            # Run OpenWebUI; blocking call
+            self.logger.info("Starting OpenWebUI process")
             subprocess.run(
                 ["open-webui", "serve", "--host", "0.0.0.0", "--port", "3000"],
                 check=True
             )
         except subprocess.CalledProcessError as e:
-            self.logger.exception("OpenWebUI process exited with error: %s", e)
-            raise
-        except Exception as e:
-            self.logger.exception(
-                "Unexpected error in OpenWebUI process: %s", e)
-            raise
-        # finally:
-        #     self.logger.info("OpenWebUI process shutdown")
+            self.logger.error(
+                f"OpenWebUI process exited with error code {e.returncode}")
+        except Exception:
+            self.logger.exception("Unexpected crash in OpenWebUI process")
 
     def _run_ingestion(self) -> None:
+        try:
+            self.logger.info("Starting KB ingestion process")
 
-        self.logger.info("Starting KB ingestion process")
+            container = Container()
+            container.config.kb_root.from_value(self.kb_root)
+            container.config.dotenv_path.from_value(self.dotenv_path)
+            container.config.project_root
 
-        # Instantiate DI container in this process
-        container = Container()
-        container.config.project_root
-        container.config.kb_root.from_value(self.kb_root)
-        container.config.dotenv_path.from_value(self.dotenv_path)
+            shutdown = ShutdownCoordinator()
+            shutdown.install_signal_handlers()
 
-        shutdown = ShutdownCoordinator()
-        shutdown.install_signal_handlers()
+            ingestion_app = container.ingestion_process()
 
-        ingestion_app = container.ingestion_process()
+            async def resilient_loop() -> None:
+                while not shutdown.stop_event.is_set():
+                    try:
+                        result: FutureResult[None, Exception] = ingestion_app.monitor_and_refresh_kbs(
+                        )
+                        await result.awaitable()
+                    except Exception:
+                        self.logger.exception(
+                            "Internal error during KB ingestion loop")
 
-        async def resilient_loop() -> None:
-            while True:
-                try:
-                    # Run ingestion for all knowledge bases.
-                    # monitor_and_refresh_kbs returns FutureResult; we await it
-                    result: FutureResult[None, Exception] = ingestion_app.monitor_and_refresh_kbs(
-                    )
-                    await result.awaitable()  # errors propagate as exceptions
+                    await asyncio.sleep(1)
 
-                except Exception as e:
-                    # Log errors but do NOT exit the loop
-                    self.logger.exception("Error during KB ingestion: %s", e)
+            asyncio.run(resilient_loop())
 
-                # Check shutdown signal
-                if shutdown.stop_event.is_set():
-                    self.logger.info(
-                        "Shutdown signal received, stopping ingestion loop")
-                    break
-
-        # Run the loop in the process until shutdown
-        asyncio.run(resilient_loop())
-        self.logger.info("KB ingestion process shutdown")
+        except Exception:
+            self.logger.exception(
+                "KBIngestion process failed during initialization")
+        finally:
+            self.logger.info("KB ingestion process shutdown")
