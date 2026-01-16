@@ -1,6 +1,6 @@
 from pathlib import Path
-from control.app_controller import AppController
-from control.dependency_container import Container
+from .app_controller import AppController
+from .dependency_container import Container
 import logging
 
 def main() -> None:

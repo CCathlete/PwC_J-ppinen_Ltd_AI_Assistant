@@ -20,7 +20,7 @@ dependencies = [
 where = ["."]
 
 [project.scripts]
-validate-assistant = "src.control.main:main"
+run-app = "src.control.main:main"
 fine-tune-rag = "infra.fine_tune_rag:main"
 
 [tool.mypy]
