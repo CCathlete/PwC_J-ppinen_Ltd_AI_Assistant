@@ -1,0 +1,38 @@
+@startuml PwC Embedder
+skinparam Monochrome true
+skinparam BoxPadding 20
+
+box "Control" #F9F9F9
+    participant Main
+    participant DependencyContainer
+end box
+
+box "Application" #F0F7FF
+    participant IngestionProcess
+end box
+
+box "Domain" #F0FFF0
+    participant KnowledgeBaseManager
+end box
+
+box "Infrastructure" #FFF5E6
+    participant FS
+    participant OpenWebUI
+end box
+
+Main -> DependencyContainer : wire()
+Main -> IngestionProcess : run_forever()
+
+group Perpetual Loop
+    IngestionProcess -> FS : scan_folders()
+    FS --> IngestionProcess : Result(files)
+    
+    IngestionProcess -> KnowledgeBaseManager : get_sync_plan(files)
+    KnowledgeBaseManager --> IngestionProcess : Result(plan)
+    
+    loop for each file in plan
+        IngestionProcess -> OpenWebUI : embed_file(file)
+        OpenWebUI --> IngestionProcess : Result(success)
+    end
+end
+@enduml
