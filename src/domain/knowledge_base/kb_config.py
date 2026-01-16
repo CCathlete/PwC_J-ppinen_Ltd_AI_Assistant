@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import yaml
 
+
 @dataclass(frozen=True)
 class KnowledgeBaseConfig:
     name: str
@@ -16,4 +17,3 @@ class KnowledgeBaseConfig:
             description=data.get("description", ""),
             public=data.get("public", False),
         )
-
