@@ -22,13 +22,21 @@ class AppController:
 
     def serve_openwebui_process(self) -> Process:
         """Return a Process that runs the OpenWebUI server."""
-        p = Process(target=self._run_openwebui, name="OpenWebUIServer", daemon=False)
-        return p
+        try:
+            p = Process(target=self._run_openwebui, name="OpenWebUIServer", daemon=False)
+            return p
+        except Exception as e:
+            self.logger.exception("Failed to start openwebui server: %s", e)
+            raise
 
     def knowledge_base_ingestion_process(self) -> Process:
         """Return a Process that runs the KB ingestion loop."""
-        p = Process(target=self._run_ingestion, name="KBIngestion", daemon=False)
-        return p
+        try:
+            p = Process(target=self._run_ingestion, name="KBIngestion", daemon=False)
+            return p
+        except Exception as e:
+            self.logger.exception("Failed to start knowledge base ingestion process: %s", e)
+            raise
 
     # ---------------- Internal helpers ----------------
     
@@ -56,8 +64,8 @@ class AppController:
         except Exception as e:
             self.logger.exception("Unexpected error in OpenWebUI process: %s", e)
             raise
-        finally:
-            self.logger.info("OpenWebUI process shutdown")
+        # finally:
+        #     self.logger.info("OpenWebUI process shutdown")
 
     def _run_ingestion(self) -> None:
 
@@ -71,14 +79,14 @@ class AppController:
         shutdown = ShutdownCoordinator()
         shutdown.install_signal_handlers()
 
-        ingestion_app = container.ingestion_app()
+        ingestion_app = container.ingestion_process()
 
         async def resilient_loop() -> None:
             while True:
                 try:
                     # Run ingestion for all knowledge bases.
                     # monitor_and_refresh_kbs returns FutureResult; we await it
-                    result: FutureResult[None, Exception] = ingestion_app.monitor_and_refresh_kbs(shutdown.stop_event)
+                    result: FutureResult[None, Exception] = ingestion_app.monitor_and_refresh_kbs()
                     await result.awaitable()  # errors propagate as exceptions
 
                 except Exception as e:

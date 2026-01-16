@@ -1,23 +1,24 @@
 import logging
-from dataclasses import dataclass, field
 from pathlib import Path
 
-
-@dataclass
+# The file handler class doesn't go well with data classes.
 class TruncatingFileHandler(logging.FileHandler):
-    filename: Path
-    max_bytes: int
-    mode: str = "a"
-    encoding: str | None = None
-    delay: bool = False
-
-    def __post_init__(self) -> None:
-        self.filename.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(
+        self,
+        filename: Path,
+        max_bytes: int,
+        mode: str = "a",
+        encoding: str | None = None,
+        delay: bool = False,
+    ) -> None:
+        self.max_bytes: int = max_bytes
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        
         super().__init__(
-            filename=self.filename,
-            mode=self.mode,
-            encoding=self.encoding,
-            delay=self.delay,
+            filename=str(filename),
+            mode=mode,
+            encoding=encoding,
+            delay=delay,
         )
 
     def emit(self, record: logging.LogRecord) -> None:
@@ -28,7 +29,6 @@ class TruncatingFileHandler(logging.FileHandler):
             super().emit(record)
         except Exception:
             self.handleError(record)
-
 
 def create_logger(
     *,
@@ -41,7 +41,7 @@ def create_logger(
     logger.propagate = False
 
     if logger.handlers:
-        return logger  # singleton safety
+        return logger
 
     handler = TruncatingFileHandler(
         filename=log_dir / "app.log",
@@ -55,4 +55,3 @@ def create_logger(
 
     logger.addHandler(handler)
     return logger
-
