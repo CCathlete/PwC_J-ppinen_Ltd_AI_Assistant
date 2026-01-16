@@ -19,19 +19,22 @@ class Container(containers.DeclarativeContainer):
     )
 
     fs: providers.Singleton[IFileSystem] = providers.Singleton(FileSystem)
-    
+
     connector: providers.Singleton[AIProvider] = providers.Singleton(
         OpenWebUIConnector,
-        base_url=providers.Callable(lambda env: env.vars.get("OPENWEBUI_URL"), env),
-        token=providers.Callable(lambda env: env.vars.get("OPENWEBUI_TOKEN"), env),
+        base_url=providers.Callable(
+            lambda env: env.vars.get("OPENWEBUI_URL"), env),
+        token=providers.Callable(
+            lambda env: env.vars.get("OPENWEBUI_TOKEN"), env),
     )
 
     logger = providers.Singleton(
         create_logger,
         name="app",
-        # config.project_root is a Path object from the dict, 
+        # config.project_root is a Path object from the dict,
         # so we can call .joinpath() on it directly
-        log_dir=providers.Callable(lambda root: root.joinpath("logs"), config.project_root),
+        log_dir=providers.Callable(
+            lambda root: root.joinpath("logs"), config.project_root),
         logfile_size_limit_mb=config.logfile_size_limit_MB,
     )
 

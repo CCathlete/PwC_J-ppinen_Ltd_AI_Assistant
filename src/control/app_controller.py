@@ -23,7 +23,8 @@ class AppController:
     def serve_openwebui_process(self) -> Process:
         """Return a Process that runs the OpenWebUI server."""
         try:
-            p = Process(target=self._run_openwebui, name="OpenWebUIServer", daemon=False)
+            p = Process(target=self._run_openwebui,
+                        name="OpenWebUIServer", daemon=False)
             return p
         except Exception as e:
             self.logger.exception("Failed to start openwebui server: %s", e)
@@ -32,20 +33,23 @@ class AppController:
     def knowledge_base_ingestion_process(self) -> Process:
         """Return a Process that runs the KB ingestion loop."""
         try:
-            p = Process(target=self._run_ingestion, name="KBIngestion", daemon=False)
+            p = Process(target=self._run_ingestion,
+                        name="KBIngestion", daemon=False)
             return p
         except Exception as e:
-            self.logger.exception("Failed to start knowledge base ingestion process: %s", e)
+            self.logger.exception(
+                "Failed to start knowledge base ingestion process: %s", e)
             raise
 
     # ---------------- Internal helpers ----------------
-    
+
     def _run_openwebui(self) -> None:
         self.logger.info("Starting OpenWebUI process")
-        
+
         # Setup signal handlers so CTRL+C / termination works
-        def handle_signal(signum: int, _:FrameType | None) -> None:
-            self.logger.info(f"Received signal {signum}, terminating OpenWebUI")
+        def handle_signal(signum: int, _: FrameType | None) -> None:
+            self.logger.info(
+                f"Received signal {signum}, terminating OpenWebUI")
             # subprocess.run will exit on its own; we just log here
             exit(0)
 
@@ -62,7 +66,8 @@ class AppController:
             self.logger.exception("OpenWebUI process exited with error: %s", e)
             raise
         except Exception as e:
-            self.logger.exception("Unexpected error in OpenWebUI process: %s", e)
+            self.logger.exception(
+                "Unexpected error in OpenWebUI process: %s", e)
             raise
         # finally:
         #     self.logger.info("OpenWebUI process shutdown")
@@ -73,6 +78,7 @@ class AppController:
 
         # Instantiate DI container in this process
         container = Container()
+        container.config.project_root
         container.config.kb_root.from_value(self.kb_root)
         container.config.dotenv_path.from_value(self.dotenv_path)
 
@@ -86,7 +92,8 @@ class AppController:
                 try:
                     # Run ingestion for all knowledge bases.
                     # monitor_and_refresh_kbs returns FutureResult; we await it
-                    result: FutureResult[None, Exception] = ingestion_app.monitor_and_refresh_kbs()
+                    result: FutureResult[None, Exception] = ingestion_app.monitor_and_refresh_kbs(
+                    )
                     await result.awaitable()  # errors propagate as exceptions
 
                 except Exception as e:
@@ -95,10 +102,10 @@ class AppController:
 
                 # Check shutdown signal
                 if shutdown.stop_event.is_set():
-                    self.logger.info("Shutdown signal received, stopping ingestion loop")
+                    self.logger.info(
+                        "Shutdown signal received, stopping ingestion loop")
                     break
 
         # Run the loop in the process until shutdown
         asyncio.run(resilient_loop())
         self.logger.info("KB ingestion process shutdown")
-
