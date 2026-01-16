@@ -1,5 +1,6 @@
 # src/infrastructure/openwebui_connector.py
 import httpx
+import asyncio
 from pathlib import Path
 from httpx import Response, HTTPStatusError
 from typing import Protocol
@@ -44,11 +45,15 @@ class OpenWebUIConnector(AIProvider):
                 self.logger.info("Creating Knowledge Base: %s", name)
                 async with httpx.AsyncClient() as client:
                     r: Response = await client.post(
-                        "%s/api/v1/knowledge/" % self.base_url,
+                        "%s/api/v1/knowledge/" % self.base_url.strip().rstrip("/"),
                         headers={
-                            **self._headers(), "Content-Type": "application/json"},
-                        json={"name": name, "description": description,
-                              "public": public},
+                            **self._headers(),
+                            "Content-Type": "application/json"},
+                        json={
+                            "name": name,
+                            "description": description,
+                            "public": public,
+                        },
                     )
                     r.raise_for_status()
 
@@ -71,45 +76,59 @@ class OpenWebUIConnector(AIProvider):
 
         return _()
 
-    def embed_file(self, kb_id: str, path: Path) -> FutureResult[None, Exception]:
-
+    def embed_file(
+        self,
+        kb_id: str,
+        path: Path,
+    ) -> FutureResult[None, Exception]:
         @future_safe
         async def _() -> None:
-            try:
-                self.logger.info(
-                    "Uploading file '%s' to KB '%s'", path.name, kb_id)
-                async with httpx.AsyncClient() as client:
-                    with open(path, "rb") as f:
-                        r: Response = await client.post(
-                            "%s/api/v1/files/" % self.base_url,
-                            headers=self._headers(),
-                            files={"file": f},
-                        )
-                    r.raise_for_status()
-                    file_id: str = r.json()["id"]
+            clean_url = self.base_url.strip().rstrip("/")
 
-                    self.logger.info(
-                        "Attaching file %s to KB %s", file_id, kb_id)
-                    r2: Response = await client.post(
-                        "%s/api/v1/knowledge/%s/file/add" % (
-                            self.base_url, kb_id),
-                        headers={
-                            **self._headers(), "Content-Type": "application/json"},
-                        json={"file_id": file_id},
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # 1. Upload File
+                self.logger.info("Uploading: %s", path.name)
+                with open(path, "rb") as f:
+                    r = await client.post(
+                        f"{clean_url}/api/v1/files/",
+                        headers=self._headers(),
+                        files={"file": f}
                     )
-                    r2.raise_for_status()
-                    self.logger.info(
-                        "File '%s' successfully embedded in '%s'", path.name, kb_id)
-            except HTTPStatusError as e:
-                self.logger.error(
-                    "HTTP Error embedding file '%s': %s - %s",
-                    path.name, e.response.status_code, e.response.text
+                r.raise_for_status()
+                file_id: str = r.json()["id"]
+
+                # 2. Poll for 'completed' status
+                max_retries = 10
+                for i in range(max_retries):
+                    status_res = await client.get(
+                        f"{clean_url}/api/v1/files/{file_id}/process/status",
+                        headers=self._headers()
+                    )
+                    status_res.raise_for_status()
+                    status = status_res.json().get("status")
+
+                    if status == "completed":
+                        break
+                    if status == "failed":
+                        raise Exception(
+                            "Embedding failed for file %s" % file_id)
+
+                    self.logger.debug(
+                        "Waiting for embedding: %s (attempt %s)", path.name, i+1)
+                    await asyncio.sleep(2)
+                else:
+                    raise Exception(
+                        "Timeout waiting for file processing: %s" % file_id)
+
+                # 3. Add to Knowledge Base
+                self.logger.info("Attaching %s to KB %s", path.name, kb_id)
+                r2 = await client.post(
+                    f"{clean_url}/api/v1/knowledge/{kb_id}/file/add",
+                    headers={
+                        **self._headers(), "Content-Type": "application/json"},
+                    json={"file_id": file_id}
                 )
-                raise e
-            except Exception as e:
-                self.logger.exception(
-                    "Unexpected error embedding file '%s'", path.name)
-                raise e
+                r2.raise_for_status()
 
         return _()
 
