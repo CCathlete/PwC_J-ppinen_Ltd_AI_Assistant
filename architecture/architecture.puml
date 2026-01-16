@@ -1,5 +1,5 @@
 @startuml
-skinparam Monochrome true
+skinparam Monochrome false
 skinparam BoxPadding 20
 skinparam ParticipantPadding 15
 
@@ -39,28 +39,35 @@ deactivate DependencyContainer
 main -> AppController : start
 activate AppController
 
-loop Perpetual Cycle
-    AppController -> KnowledgeBaseIngestionProcess : execute_sync()
+loop Embedding (until SIGKILL)
+    AppController -> KnowledgeBaseIngestionProcess : scan and embed
     activate KnowledgeBaseIngestionProcess
     
-    KnowledgeBaseIngestionProcess -> KnowledgeBaseManager : get_sync_plan()
+    KnowledgeBaseIngestionProcess -> KnowledgeBaseManager : trigger manager
     activate KnowledgeBaseManager
     
-    KnowledgeBaseManager -> Env : 
-    KnowledgeBaseManager -> FileSystem : list_local_files()
-    KnowledgeBaseManager -> KnowledgeBaseConfig : validate_settings()
+    KnowledgeBaseManager -> Env : load env into singleton
+    KnowledgeBaseManager -> FileSystem : monitor local filesystem
+    KnowledgeBaseManager -> KnowledgeBaseConfig : knowledgebase metadata
     
-    KnowledgeBaseManager --> KnowledgeBaseIngestionProcess : Result[SyncPlan]
-    deactivate KnowledgeBaseManager
 
-    KnowledgeBaseIngestionProcess -> OpenWebUIConnector : sync_files(plan)
-    OpenWebUIConnector -> TruncatingFileHandler : log_activity()
-    OpenWebUIConnector --> KnowledgeBaseIngestionProcess : Result[Success]
+    KnowledgeBaseIngestionProcess -> OpenWebUIConnector : serve UI and monitor
+
+    KnowledgeBaseIngestionProcess -> OpenWebUIConnector : async file embedding via API
     
     KnowledgeBaseIngestionProcess --> AppController : Result[Done]
     deactivate KnowledgeBaseIngestionProcess
     
     note over AppController : Handle Result monad\nWait for next interval
+end
+
+loop Server Monitoring (until SIGKILL)
+    AppController -> KnowledgeBaseIngestionProcess : trigger server activation
+    KnowledgeBaseManager -> Env : load env into singleton
+    KnowledgeBaseIngestionProcess -> OpenWebUIConnector : serve UI and monitor
+
+    
+    note over AppController : Monitor server and if down restart.
 end
 
 deactivate AppController
