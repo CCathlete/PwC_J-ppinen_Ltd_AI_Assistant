@@ -43,32 +43,40 @@ class Container(containers.DeclarativeContainer):
         create_logger,
         name="app",
         # config.project_root is a Path object from the dict,
-        # so we can call .joinpath() on it directly
         log_dir=providers.Callable(get_log_dir, config.project_root),
         logfile_size_limit_mb=config.logfile_size_limit_MB,
     )
 
     connector: providers.Singleton[AIProvider] = providers.Singleton(
         OpenWebUIConnector,
-        base_url=providers.Callable(get_from_env, env),
-        token=providers.Callable(get_from_env, env),
+        base_url=providers.Callable(
+            get_from_env,
+            env=env,
+            key="OPENWEBUI_URL"
+        ),
+        token=providers.Callable(
+            get_from_env,
+            env=env,
+            key="OPENWEBUI_TOKEN"
+        ),
         logger=logger,
     )
 
-    # -------------------- Domain --------------------
-    kb_manager: providers.Singleton[KnowledgeBaseManager] = providers.Singleton(
-        KnowledgeBaseManager,
-        fs=fs,
-        connector=connector,
-        logger=logger,
-        _embedded_files=providers.Object({}),
-    )
 
-    # -------------------- Application --------------------
-    ingestion_process: providers.Factory[KnowledgeBaseIngestionProcess] = providers.Factory(
-        KnowledgeBaseIngestionProcess,
-        kb_manager=kb_manager,
-        root=config.kb_root,
-        logger=logger,
-        env=env,
-    )
+# -------------------- Domain --------------------
+kb_manager: providers.Singleton[KnowledgeBaseManager] = providers.Singleton(
+    KnowledgeBaseManager,
+    fs=fs,
+    connector=connector,
+    logger=logger,
+    _embedded_files=providers.Object({}),
+)
+
+# -------------------- Application --------------------
+ingestion_process: providers.Factory[KnowledgeBaseIngestionProcess] = providers.Factory(
+    KnowledgeBaseIngestionProcess,
+    kb_manager=kb_manager,
+    root=config.kb_root,
+    logger=logger,
+    env=env,
+)
