@@ -1,7 +1,6 @@
 # src/control/dependency_container.py
 from dependency_injector import containers, providers
 
-# control/dependency_container.py
 from ..infrastructure.env import Env
 from ..infrastructure.logging import create_logger
 from ..infrastructure.fs import FileSystem, IFileSystem
@@ -11,31 +10,29 @@ from ..domain.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
 
 
 class Container(containers.DeclarativeContainer):
-    """Dependency injection container for the app."""
-
-    config = providers.Configuration()  # runtime config for paths, .env, etc.
+    config = providers.Configuration()
 
     # -------------------- Infrastructure --------------------
     env: providers.Singleton[Env] = providers.Singleton(
         lambda path: Env().load(path).unwrap(),
-        path=config.dotenv_path  # e.g. ".env"
+        path=config.dotenv_path
     )
 
     fs: providers.Singleton[IFileSystem] = providers.Singleton(FileSystem)
     
     connector: providers.Singleton[AIProvider] = providers.Singleton(
         OpenWebUIConnector,
-        # Makes sure that this is evaulated during runtime.
         base_url=providers.Callable(lambda env: env.vars.get("OPENWEBUI_URL"), env),
         token=providers.Callable(lambda env: env.vars.get("OPENWEBUI_TOKEN"), env),
     )
 
-
     logger = providers.Singleton(
-    create_logger,
-    name="app",
-    log_dir=config.project_root.provided.joinpath("logs"),
-    logfile_size_limit_mb=config.logfile_size_limit_MB,
+        create_logger,
+        name="app",
+        # config.project_root is a Path object from the dict, 
+        # so we can call .joinpath() on it directly
+        log_dir=providers.Callable(lambda root: root.joinpath("logs"), config.project_root),
+        logfile_size_limit_mb=config.logfile_size_limit_MB,
     )
 
     # -------------------- Domain --------------------
@@ -50,8 +47,7 @@ class Container(containers.DeclarativeContainer):
     ingestion_process: providers.Factory[KnowledgeBaseIngestionProcess] = providers.Factory(
         KnowledgeBaseIngestionProcess,
         kb_manager=kb_manager,
-        root=config.kb_root,  # Path to KB root folder
+        root=config.kb_root,
         logger=logger,
         env=env,
     )
-
