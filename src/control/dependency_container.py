@@ -39,12 +39,6 @@ class Container(containers.DeclarativeContainer):
 
     fs: providers.Singleton[IFileSystem] = providers.Singleton(FileSystem)
 
-    connector: providers.Singleton[AIProvider] = providers.Singleton(
-        OpenWebUIConnector,
-        base_url=providers.Callable(get_from_env, env),
-        token=providers.Callable(get_from_env, env),
-    )
-
     logger = providers.Singleton(
         create_logger,
         name="app",
@@ -52,6 +46,13 @@ class Container(containers.DeclarativeContainer):
         # so we can call .joinpath() on it directly
         log_dir=providers.Callable(get_log_dir, config.project_root),
         logfile_size_limit_mb=config.logfile_size_limit_MB,
+    )
+
+    connector: providers.Singleton[AIProvider] = providers.Singleton(
+        OpenWebUIConnector,
+        base_url=providers.Callable(get_from_env, env),
+        token=providers.Callable(get_from_env, env),
+        logger=logger,
     )
 
     # -------------------- Domain --------------------
