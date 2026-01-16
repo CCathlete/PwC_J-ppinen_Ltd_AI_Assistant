@@ -62,21 +62,20 @@ class Container(containers.DeclarativeContainer):
         logger=logger,
     )
 
+    # -------------------- Domain --------------------
+    kb_manager: providers.Singleton[KnowledgeBaseManager] = providers.Singleton(
+        KnowledgeBaseManager,
+        fs=fs,
+        connector=connector,
+        logger=logger,
+        _embedded_files=providers.Object({}),
+    )
 
-# -------------------- Domain --------------------
-kb_manager: providers.Singleton[KnowledgeBaseManager] = providers.Singleton(
-    KnowledgeBaseManager,
-    fs=fs,
-    connector=connector,
-    logger=logger,
-    _embedded_files=providers.Object({}),
-)
-
-# -------------------- Application --------------------
-ingestion_process: providers.Factory[KnowledgeBaseIngestionProcess] = providers.Factory(
-    KnowledgeBaseIngestionProcess,
-    kb_manager=kb_manager,
-    root=config.kb_root,
-    logger=logger,
-    env=env,
-)
+    # -------------------- Application --------------------
+    ingestion_process: providers.Factory[KnowledgeBaseIngestionProcess] = providers.Factory(
+        KnowledgeBaseIngestionProcess,
+        kb_manager=kb_manager,
+        root=config.kb_root,
+        logger=logger,
+        env=env,
+    )
