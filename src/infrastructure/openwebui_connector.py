@@ -4,7 +4,7 @@ import asyncio
 from pathlib import Path
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from httpx import Response, HTTPStatusError
+from httpx import Response
 from returns.future import FutureResult, future_safe
 
 from .logging import Logger
@@ -15,7 +15,7 @@ class AIProvider(ABC):
     token: str
 
     @abstractmethod
-    def create_kb(self, name: str, description: str, public: bool) -> FutureResult[str, Exception]:
+    def get_all_kbs(self) -> FutureResult[dict[str, str], Exception]:
         ...
 
     @abstractmethod
@@ -43,42 +43,28 @@ class OpenWebUIConnector(AIProvider):
     def _headers(self) -> dict[str, str]:
         return {"Authorization": "Bearer %s" % self.token}
 
-    def create_kb(self, name: str, description: str, public: bool) -> FutureResult[str, Exception]:
-
+    def get_all_kbs(self) -> FutureResult[dict[str, str], Exception]:
         @future_safe
-        async def _() -> str:
-            try:
-                self.logger.info("Creating Knowledge Base: %s", name)
-                async with httpx.AsyncClient() as client:
-                    r: Response = await client.post(
-                        "%s/api/v1/knowledge/" % self.base_url.strip().rstrip("/"),
-                        headers={
-                            **self._headers(),
-                            "Content-Type": "application/json"},
-                        json={
-                            "name": name,
-                            "description": description,
-                            "public": public,
-                        },
-                    )
-                    r.raise_for_status()
+        async def _() -> dict[str, str]:
+            clean_url = self.base_url.strip().rstrip("/")
 
-                    kb_id: str = r.json()["id"]
-
-                    self.logger.info(
-                        "Successfully created KB: (name - %s, id - %s", name, kb_id)
-                    return kb_id
-
-            except HTTPStatusError as e:
-                self.logger.error(
-                    "HTTP Error creating KB '%s': %s - %s",
-                    name, e.response.status_code, e.response.text
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                r: Response = await client.get(
+                    f"{clean_url}/api/v1/knowledge/",
+                    headers={
+                        **self._headers(),
+                        "Accept": "application/json",
+                    },
                 )
-                raise e
-            except Exception as e:
-                self.logger.exception(
-                    "Unexpected error creating KB '%s'", name)
-                raise e
+                r.raise_for_status()
+
+                items: list[dict[str, str]] = r.json().get("items", [])
+
+                return {
+                    item["name"]: item["id"]
+                    for item in items
+                    if "name" in item and "id" in item
+                }
 
         return _()
 
