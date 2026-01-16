@@ -2,7 +2,7 @@
 import httpx
 from pathlib import Path
 from httpx import Response, HTTPStatusError
-from typing import Protocol
+from typing import Protocol, Any
 from dataclasses import dataclass
 from returns.future import FutureResult, future_safe
 
@@ -21,6 +21,9 @@ class AIProvider(Protocol):
         ...
 
     def embed_file(self, kb_id: str, path: Path) -> FutureResult[None, Exception]:
+        ...
+
+    def get_kb_files(self, kb_id: str) -> FutureResult[list[str], Exception]:
         ...
 
 
@@ -108,4 +111,27 @@ class OpenWebUIConnector(AIProvider):
                     "Unexpected error embedding file '%s'", path.name)
                 raise e
 
+        return _()
+
+    def get_kb_files(self, kb_id: str) -> FutureResult[list[str], Exception]:
+        @future_safe
+        async def _() -> list[str]:
+            self.logger.info("Fetching remote file list for KB: %s", kb_id)
+            async with httpx.AsyncClient() as client:
+                r: Response = await client.get(
+                    "%s/api/v1/knowledge/%s/files" % (self.base_url, kb_id),
+                    headers=self._headers()
+                )
+                r.raise_for_status()
+
+                # GET .../api/v1/knowledge/{id}/files responds with:
+                # {"items": [{"filename": "...", ...}]}
+                data = r.json()
+                items: list[dict[str, Any]] = data.get("items", [])
+
+                return [
+                    item.get("filename", "")
+                    for item in items
+                    if isinstance(item, dict[str, str]) and item.get("filename")
+                ]
         return _()

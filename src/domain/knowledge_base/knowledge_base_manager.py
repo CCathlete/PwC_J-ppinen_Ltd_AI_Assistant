@@ -6,7 +6,6 @@ from returns.io import IOResult, IOSuccess, IOFailure
 from returns.future import FutureResult, future_safe
 from returns.result import Success, Failure
 
-
 from .kb_config import KnowledgeBaseConfig
 from ...infrastructure.fs import IFileSystem
 from ...infrastructure.openwebui_connector import AIProvider
@@ -16,7 +15,7 @@ from ...infrastructure.openwebui_connector import AIProvider
 class KnowledgeBaseManager:
     fs: IFileSystem
     connector: AIProvider
-    _embedded_files: dict[str, set[str]]  # {kb_id: set(filepath_strs)}
+    _embedded_files: dict[str, set[str]]
     logger: logging.Logger
 
     def __post_init__(self) -> None:
@@ -26,11 +25,6 @@ class KnowledgeBaseManager:
         return self._embedded_files.copy()
 
     def ingest_folder(self, folder: Path) -> list[FutureResult[None, Exception]]:
-        """
-        Return one FutureResult per file in folder.
-        KB is created only once if needed.
-        Failures are per-file and logged.
-        """
         try:
             config = KnowledgeBaseConfig.load(folder / "kbconfig.yaml")
         except Exception as e:
@@ -38,74 +32,60 @@ class KnowledgeBaseManager:
                 "Failed to load kbconfig for folder '%s': %s", folder, e)
             return []
 
-        kb_name = config.name
-        embedded = self._embedded_files.get(kb_name, set())
-        files_to_embed = self.fs.get_unembedded_files(folder, embedded)
-
-        if not files_to_embed:
-            return []
-
-        kb_id_future: FutureResult[str, Exception]
-        if kb_name not in self._embedded_files:
-            # Create KB first if it does not exist
-            kb_id_future = self.connector.create_kb(
-                config.name, config.description, config.public
-            )
-        else:
-            kb_id_future = FutureResult.from_value(kb_name)
+        kb_name: str = config.name
 
         @future_safe
-        async def embed_file(file: Path, kb_id_future: FutureResult[str, Exception] = kb_id_future) -> None:
-            try:
-                # Result is the unwrapped state of the Future.
-                io_res: IOResult[str, Exception] = await kb_id_future.awaitable()
+        async def orchestrate_ingestion() -> None:
+            kb_res = await self.connector.create_kb(
+                config.name, config.description, config.public
+            ).awaitable()
 
-                match io_res:
-                    case IOSuccess(Success(kb_id)):
-                        await self.connector.embed_file(kb_id, file).awaitable()
-                        embedded.add(file.name)
+            match kb_res:
+                case IOSuccess(Success(kb_id)):
+                    remote_res: IOResult[list[str], Exception] = await self.connector.get_kb_files(kb_id).awaitable()
 
-                    case IOFailure(Failure(e)):
-                        self.logger.exception(
-                            "Failed to create/resolve KB for folder '%s': %s", folder, e
-                        )
-                    case _: pass
+                    match remote_res:
+                        case IOSuccess(Success(remote_filenames)):
+                            local_files: list[Path] = [
+                                f for f in self.fs.list_files(folder)
+                                if f.name != "kbconfig.yaml" and not f.name.startswith(".")
+                            ]
 
-            except Exception as e:
-                self.logger.exception(
-                    "Failed to embed file '%s' in folder '%s': %s", file.name, folder, e
-                )
+                            to_upload: list[Path] = [
+                                f for f in local_files if f.name not in remote_filenames
+                            ]
 
-        tasks: list[FutureResult[None, Exception]] = [
-            embed_file(file) for file in files_to_embed]
+                            if not to_upload:
+                                self.logger.info(
+                                    "KB '%s' is up to date.", kb_name)
+                                return
 
-        # Update embedded files immediately to track progress
-        self._embedded_files[kb_name] = embedded
+                            self.logger.info(
+                                "Found %s files missing from KB '%s'.", len(to_upload), kb_name)
 
-        return tasks
+                            for file in to_upload:
+                                try:
+                                    res: IOResult[None, Exception] = await self.connector.embed_file(kb_id, file).awaitable()
+                                    match res:
+                                        case IOSuccess(Success(_)):
+                                            self.logger.info(
+                                                "Successfully synced: %s", file.name)
+                                        case IOFailure(Failure(err)):
+                                            self.logger.error(
+                                                "Failed to sync file '%s': %s", file.name, err)
+                                        case _: pass
+                                except Exception as e:
+                                    self.logger.exception(
+                                        "Unexpected error syncing '%s': %s", file.name, e)
 
-    def _embed_new_files(self, kb_id: str, folder: Path) -> list[FutureResult[None, Exception]]:
-        """
-        Return a list of FutureResults, one per file.
-        Each file embedding runs independently.
-        """
-        embedded = self._embedded_files.get(kb_id, set())
-        files_to_embed = self.fs.get_unembedded_files(folder, embedded)
+                        case IOFailure(Failure(e)):
+                            self.logger.error(
+                                "Could not fetch remote state for KB '%s': %s", kb_name, e)
+                        case _: pass
 
-        tasks: list[FutureResult[None, Exception]] = []
+                case IOFailure(Failure(e)):
+                    self.logger.error(
+                        "KB creation/resolution failed for '%s': %s", kb_name, e)
+                case _: pass
 
-        for file in files_to_embed:
-            @future_safe
-            async def embed_file_safe(file: Path = file) -> None:
-                try:
-                    await self.connector.embed_file(kb_id, file).awaitable()
-                    embedded.add(file.name)
-                except Exception as e:
-                    self.logger.exception(
-                        "Failed to embed file '%s' in folder '%s': %s", file.name, folder, e
-                    )
-
-            tasks.append(embed_file_safe())
-
-        self._embedded_files[kb_id] = embedded
-        return tasks
+        return [orchestrate_ingestion()]
