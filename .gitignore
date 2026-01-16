@@ -213,3 +213,5 @@ __marimo__/
 **/*.tfstate*
 **/*tfplan
 **/*.terraform*/
+logs
+knowledge_bases/**
