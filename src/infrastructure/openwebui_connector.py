@@ -34,6 +34,7 @@ class OpenWebUIConnector(AIProvider):
         return {"Authorization": "Bearer %s" % self.token}
 
     def create_kb(self, name: str, description: str, public: bool) -> FutureResult[str, Exception]:
+
         @future_safe
         async def _() -> str:
             try:
@@ -48,8 +49,12 @@ class OpenWebUIConnector(AIProvider):
                     )
                     r.raise_for_status()
 
-                    self.logger.info("Successfully created KB: %s", name)
-                    return name
+                    kb_id: str = r.json()["id"]
+
+                    self.logger.info(
+                        "Successfully created KB: (name - %s, id - %s", name, kb_id)
+                    return kb_id
+
             except HTTPStatusError as e:
                 self.logger.error(
                     "HTTP Error creating KB '%s': %s - %s",
@@ -64,6 +69,7 @@ class OpenWebUIConnector(AIProvider):
         return _()
 
     def embed_file(self, kb_id: str, path: Path) -> FutureResult[None, Exception]:
+
         @future_safe
         async def _() -> None:
             try:
