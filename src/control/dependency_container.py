@@ -57,7 +57,7 @@ class Container(containers.DeclarativeContainer):
         token=providers.Callable(
             get_from_env,
             env=env,
-            key="OPENWEBUI_TOKEN"
+            key="OPENWEBUI_API_KEY"
         ),
         logger=logger,
     )

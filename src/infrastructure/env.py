@@ -15,7 +15,7 @@ class Env:
         loaded_vars = {
             k: self._parse_value(v)
             for k, v in os.environ.items()
-            if v is not None
+            if v
         }
         return Env(vars=loaded_vars)
 
@@ -34,4 +34,3 @@ class Env:
             return int(value)
         except ValueError:
             return value
-
