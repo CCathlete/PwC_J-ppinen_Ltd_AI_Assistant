@@ -2,28 +2,27 @@
 import httpx
 import asyncio
 from pathlib import Path
-from httpx import Response, HTTPStatusError
-from typing import Protocol
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
+from httpx import Response, HTTPStatusError
 from returns.future import FutureResult, future_safe
 
 from .logging import Logger
 
 
-@dataclass(frozen=True)
-class AIProvider(Protocol):
+class AIProvider(ABC):
     base_url: str
     token: str
 
-    def _headers(self) -> dict[str, str]:
-        ...
-
+    @abstractmethod
     def create_kb(self, name: str, description: str, public: bool) -> FutureResult[str, Exception]:
         ...
 
+    @abstractmethod
     def embed_file(self, kb_id: str, path: Path) -> FutureResult[None, Exception]:
         ...
 
+    @abstractmethod
     def get_kb_files(self, kb_id: str) -> FutureResult[list[str], Exception]:
         ...
 
@@ -33,6 +32,13 @@ class OpenWebUIConnector(AIProvider):
     base_url: str
     token: str
     logger: Logger
+
+    def __post_init__(self) -> None:
+        self.logger.info(
+            "BASE_URL=%r IS_TOKEN=%s",
+            self.base_url,
+            bool(self.token)
+        )
 
     def _headers(self) -> dict[str, str]:
         return {"Authorization": "Bearer %s" % self.token}
@@ -86,18 +92,21 @@ class OpenWebUIConnector(AIProvider):
             clean_url = self.base_url.strip().rstrip("/")
 
             async with httpx.AsyncClient(timeout=30.0) as client:
-                # 1. Upload File
+                # 1. Upload File -------------------------------------------
                 self.logger.info("Uploading: %s", path.name)
                 with open(path, "rb") as f:
                     r = await client.post(
                         f"{clean_url}/api/v1/files/",
-                        headers=self._headers(),
+                        headers={
+                            **self._headers(),
+                            "Accept": "application/json"
+                        },
                         files={"file": f}
                     )
                 r.raise_for_status()
                 file_id: str = r.json()["id"]
 
-                # 2. Poll for 'completed' status
+                # 2. Poll for 'completed' status --------------------------
                 max_retries = 10
                 for i in range(max_retries):
                     status_res = await client.get(
@@ -120,7 +129,7 @@ class OpenWebUIConnector(AIProvider):
                     raise Exception(
                         "Timeout waiting for file processing: %s" % file_id)
 
-                # 3. Add to Knowledge Base
+                # 3. Add to Knowledge Base -------------------------------
                 self.logger.info("Attaching %s to KB %s", path.name, kb_id)
                 r2 = await client.post(
                     f"{clean_url}/api/v1/knowledge/{kb_id}/file/add",
