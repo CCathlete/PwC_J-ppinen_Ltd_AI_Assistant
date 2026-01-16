@@ -11,8 +11,6 @@ from .logging import Logger
 
 @dataclass(frozen=True)
 class AIProvider(Protocol):
-    """Encapsulates HTTP logic to create KBs and embed files."""
-
     base_url: str
     token: str
 
@@ -20,33 +18,28 @@ class AIProvider(Protocol):
         ...
 
     def create_kb(self, name: str, description: str, public: bool) -> FutureResult[str, Exception]:
-        """Create a new knowledge base."""
         ...
 
     def embed_file(self, kb_id: str, path: Path) -> FutureResult[None, Exception]:
-        """Upload a file and attach it to a KB."""
         ...
 
 
 @dataclass(frozen=True)
 class OpenWebUIConnector(AIProvider):
-    """Encapsulates HTTP logic to create KBs and embed files."""
-
     base_url: str
     token: str
     logger: Logger
 
     def _headers(self) -> dict[str, str]:
-        return {"Authorization": f"Bearer {self.token}"}
+        return {"Authorization": "Bearer %s" % self.token}
 
     def create_kb(self, name: str, description: str, public: bool) -> FutureResult[str, Exception]:
-        """Create a new knowledge base."""
         @future_safe
         async def _() -> str:
+            self.logger.info("Creating Knowledge Base: %s", name)
             async with httpx.AsyncClient() as client:
-
                 r: Response = await client.post(
-                    f"{self.base_url}/api/v1/knowledge/",
+                    "%s/api/v1/knowledge/" % self.base_url,
                     headers={
                         **self._headers(), "Content-Type": "application/json"},
                     json={"name": name, "description": description,
@@ -54,34 +47,36 @@ class OpenWebUIConnector(AIProvider):
                 )
                 r.raise_for_status()
 
-                # return r.json()["id"]
-                # Using the name of the KB as its id if creation was successful.
+                self.logger.info("Successfully created KB: %s", name)
                 return name
 
         return _()
 
     def embed_file(self, kb_id: str, path: Path) -> FutureResult[None, Exception]:
-        """Upload a file and attach it to a KB."""
         @future_safe
         async def _() -> None:
+            self.logger.info("Uploading file '%s' to KB '%s'",
+                             path.name, kb_id)
             async with httpx.AsyncClient() as client:
-                # Upload file
                 with open(path, "rb") as f:
                     r: Response = await client.post(
-                        f"{self.base_url}/api/v1/files/",
+                        "%s/api/v1/files/" % self.base_url,
                         headers=self._headers(),
                         files={"file": f},
                     )
                 r.raise_for_status()
                 file_id: str = r.json()["id"]
+                self.logger.info("File uploaded successfully. ID: %s", file_id)
 
-                # Attach to KB
+                self.logger.info("Attaching file %s to KB %s", file_id, kb_id)
                 r2: Response = await client.post(
-                    f"{self.base_url}/api/v1/knowledge/{kb_id}/file/add",
+                    "%s/api/v1/knowledge/%s/file/add" % (self.base_url, kb_id),
                     headers={
                         **self._headers(), "Content-Type": "application/json"},
                     json={"file_id": file_id},
                 )
                 r2.raise_for_status()
+                self.logger.info(
+                    "File '%s' successfully embedded in '%s'", path.name, kb_id)
 
         return _()
