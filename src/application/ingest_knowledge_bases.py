@@ -4,53 +4,56 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 from returns.future import FutureResult, future_safe
+from returns.io import IOSuccess, IOFailure, IOResult
+from returns.result import Success, Failure
 
 from ..domain.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
-from ..domain.knowledge_base.kb_config import KnowledgeBaseConfig
 from ..infrastructure.env import Env
+
 
 @dataclass(frozen=True)
 class KnowledgeBaseIngestionProcess:
     kb_manager: KnowledgeBaseManager
     root: Path
     env: Env
-    logger: "logging.Logger"  # inject logger
+    logger: logging.Logger
 
     def monitor_and_refresh_kbs(self) -> FutureResult[None, Exception]:
-        """
-        Continuously monitors KB folders, embedding new files.
-        Resilient: errors in a file or folder are logged and skipped.
-        """
-
         @future_safe
         async def _loop() -> None:
+            interval_raw: str | bool | int | float = self.env.vars.get(
+                "REFRESH_INTERVAL", 60)
+            interval: float = float(interval_raw) if interval_raw else 60.0
+
             while True:
                 for folder in self.kb_manager.fs.list_subfolders(self.root):
-                    try:
-                        config = KnowledgeBaseConfig.load(folder / "kbconfig.yaml")
-                        kb_name = config.name
-                    except Exception as e:
-                        self.logger.exception(
-                            "Failed to load kbconfig for folder '%s': %s", folder, e
-                        )
-                        continue  # skip this folder
 
-                    try:
-                        # Call ingest_folder which handles per-file embedding internally
-                        self.kb_manager.ingest_folder(folder)
-                        self.logger.info("Finished embedding files for KB '%s'", kb_name)
-                    except Exception as e:
-                        self.logger.exception(
-                            "Error ingesting folder '%s' for KB '%s': %s",
-                            folder, kb_name, e
-                        )
-                        continue  # skip to next folder
+                    self.logger.info(
+                        "Starting sync cycle for folder: %s", folder.name)
 
-                # sleep for refresh interval
-                interval: str | bool | int | float = self.env.vars.get("REFRESH_INTERVAL", 60)
-                if not isinstance(interval, (int, float)):
-                    interval = 60
+                    # We treat each folder ingestion as a set of awaitable tasks
+                    tasks = self.kb_manager.ingest_folder(folder)
+
+                    if not tasks:
+                        continue
+
+                    for task in tasks:
+                        result: IOResult[None, Exception] = await task.awaitable()
+
+                        match result:
+                            case IOSuccess(Success(_)):
+                                # The manager handles specific file logging,
+                                # so we just log the folder completion here.
+                                self.logger.info(
+                                    "Sync cycle completed for folder: %s", folder.name)
+                            case IOFailure(Failure(e)):
+                                self.logger.error(
+                                    "Sync cycle failed for folder %s: %s", folder.name, e)
+
+                            case _: pass
+
+                self.logger.debug(
+                    "Sleeping for %s seconds before next refresh", interval)
                 await asyncio.sleep(interval)
 
         return _loop()
-

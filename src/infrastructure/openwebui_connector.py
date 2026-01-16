@@ -2,7 +2,7 @@
 import httpx
 from pathlib import Path
 from httpx import Response, HTTPStatusError
-from typing import Protocol, Any
+from typing import Protocol
 from dataclasses import dataclass
 from returns.future import FutureResult, future_safe
 
@@ -127,11 +127,11 @@ class OpenWebUIConnector(AIProvider):
                 # GET .../api/v1/knowledge/{id}/files responds with:
                 # {"items": [{"filename": "...", ...}]}
                 data = r.json()
-                items: list[dict[str, Any]] = data.get("items", [])
+                items: list[dict[str, str]] = data.get("items", [])
 
                 return [
                     item.get("filename", "")
                     for item in items
-                    if isinstance(item, dict[str, str]) and item.get("filename")
+                    if item and item.get("filename")
                 ]
         return _()
