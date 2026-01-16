@@ -1,0 +1,14 @@
+LITELLM_API_KEY=
+
+# Needs granting permissions and then creating the key in the UI.
+OPENWEBUI_API_KEY=
+OPENWEBUI_URL=
+
+OPENAI_API_KEY=
+
+GITHUB_TOKEN=
+
+# LiteLLM url if used.
+OPENAI_API_BASE_URL=
+ENABLE_OLLAMA=false
+WEBUI_SECRET_KEY=$OPENWEBUI_API_KEY
