@@ -1,7 +1,7 @@
 # src/infrastructure/openwebui_connector.py
 import httpx
 from pathlib import Path
-from httpx import Response
+from httpx import Response, HTTPStatusError
 from typing import Protocol
 from dataclasses import dataclass
 from returns.future import FutureResult, future_safe
@@ -36,47 +36,70 @@ class OpenWebUIConnector(AIProvider):
     def create_kb(self, name: str, description: str, public: bool) -> FutureResult[str, Exception]:
         @future_safe
         async def _() -> str:
-            self.logger.info("Creating Knowledge Base: %s", name)
-            async with httpx.AsyncClient() as client:
-                r: Response = await client.post(
-                    "%s/api/v1/knowledge/" % self.base_url,
-                    headers={
-                        **self._headers(), "Content-Type": "application/json"},
-                    json={"name": name, "description": description,
-                          "public": public},
-                )
-                r.raise_for_status()
+            try:
+                self.logger.info("Creating Knowledge Base: %s", name)
+                async with httpx.AsyncClient() as client:
+                    r: Response = await client.post(
+                        "%s/api/v1/knowledge/" % self.base_url,
+                        headers={
+                            **self._headers(), "Content-Type": "application/json"},
+                        json={"name": name, "description": description,
+                              "public": public},
+                    )
+                    r.raise_for_status()
 
-                self.logger.info("Successfully created KB: %s", name)
-                return name
+                    self.logger.info("Successfully created KB: %s", name)
+                    return name
+            except HTTPStatusError as e:
+                self.logger.error(
+                    "HTTP Error creating KB '%s': %s - %s",
+                    name, e.response.status_code, e.response.text
+                )
+                raise e
+            except Exception as e:
+                self.logger.exception(
+                    "Unexpected error creating KB '%s'", name)
+                raise e
 
         return _()
 
     def embed_file(self, kb_id: str, path: Path) -> FutureResult[None, Exception]:
         @future_safe
         async def _() -> None:
-            self.logger.info("Uploading file '%s' to KB '%s'",
-                             path.name, kb_id)
-            async with httpx.AsyncClient() as client:
-                with open(path, "rb") as f:
-                    r: Response = await client.post(
-                        "%s/api/v1/files/" % self.base_url,
-                        headers=self._headers(),
-                        files={"file": f},
-                    )
-                r.raise_for_status()
-                file_id: str = r.json()["id"]
-                self.logger.info("File uploaded successfully. ID: %s", file_id)
-
-                self.logger.info("Attaching file %s to KB %s", file_id, kb_id)
-                r2: Response = await client.post(
-                    "%s/api/v1/knowledge/%s/file/add" % (self.base_url, kb_id),
-                    headers={
-                        **self._headers(), "Content-Type": "application/json"},
-                    json={"file_id": file_id},
-                )
-                r2.raise_for_status()
+            try:
                 self.logger.info(
-                    "File '%s' successfully embedded in '%s'", path.name, kb_id)
+                    "Uploading file '%s' to KB '%s'", path.name, kb_id)
+                async with httpx.AsyncClient() as client:
+                    with open(path, "rb") as f:
+                        r: Response = await client.post(
+                            "%s/api/v1/files/" % self.base_url,
+                            headers=self._headers(),
+                            files={"file": f},
+                        )
+                    r.raise_for_status()
+                    file_id: str = r.json()["id"]
+
+                    self.logger.info(
+                        "Attaching file %s to KB %s", file_id, kb_id)
+                    r2: Response = await client.post(
+                        "%s/api/v1/knowledge/%s/file/add" % (
+                            self.base_url, kb_id),
+                        headers={
+                            **self._headers(), "Content-Type": "application/json"},
+                        json={"file_id": file_id},
+                    )
+                    r2.raise_for_status()
+                    self.logger.info(
+                        "File '%s' successfully embedded in '%s'", path.name, kb_id)
+            except HTTPStatusError as e:
+                self.logger.error(
+                    "HTTP Error embedding file '%s': %s - %s",
+                    path.name, e.response.status_code, e.response.text
+                )
+                raise e
+            except Exception as e:
+                self.logger.exception(
+                    "Unexpected error embedding file '%s'", path.name)
+                raise e
 
         return _()
