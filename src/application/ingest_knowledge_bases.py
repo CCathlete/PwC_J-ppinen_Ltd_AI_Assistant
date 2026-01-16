@@ -42,13 +42,12 @@ class KnowledgeBaseIngestionProcess:
 
                         match result:
                             case IOSuccess(Success(_)):
-                                # The manager handles specific file logging,
-                                # so we just log the folder completion here.
                                 self.logger.info(
                                     "Sync cycle completed for folder: %s", folder.name)
                             case IOFailure(Failure(e)):
                                 self.logger.error(
                                     "Sync cycle failed for folder %s: %s", folder.name, e)
+                                raise e
 
                             case _: pass
 

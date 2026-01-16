@@ -58,7 +58,7 @@ class KnowledgeBaseManager:
                             if not to_upload:
                                 self.logger.info(
                                     "KB '%s' is up to date.", kb_name)
-                                return
+                                return None
 
                             self.logger.info(
                                 "Found %s files missing from KB '%s'.", len(to_upload), kb_name)
@@ -86,6 +86,8 @@ class KnowledgeBaseManager:
                 case IOFailure(Failure(e)):
                     self.logger.error(
                         "KB creation/resolution failed for '%s': %s", kb_name, e)
+                    raise e
+
                 case _: pass
 
         return [orchestrate_ingestion()]
