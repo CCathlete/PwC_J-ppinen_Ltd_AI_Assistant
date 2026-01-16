@@ -78,7 +78,7 @@ class KnowledgeBaseManager:
                     if not to_upload:
                         self.logger.info(
                             "KB '%s' is up to date.", kb_name)
-                        return None
+                        return
 
                     self.logger.info(
                         "Found %s files missing from KB '%s'.",
