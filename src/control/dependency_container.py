@@ -1,4 +1,5 @@
 # src/control/dependency_container.py
+from pathlib import Path
 from dependency_injector import containers, providers
 
 from ..infrastructure.env import Env
@@ -8,13 +9,31 @@ from ..infrastructure.openwebui_connector import AIProvider, OpenWebUIConnector
 from ..application.ingest_knowledge_bases import KnowledgeBaseIngestionProcess
 from ..domain.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
 
+# ------------------------ Factory / Provider functions ------
+
+
+def env_provider_func(path: str | Path) -> Env:
+    return Env().load(path).unwrap()
+
+
+def get_from_env(env: Env, key: str) -> str | int | float | None:
+    return env.vars.get(key)
+
+
+def get_log_dir(root: Path) -> Path:
+    return root / "logs"
+
+
+# ------------------------ Dependency Container ------------------------
+
 
 class Container(containers.DeclarativeContainer):
     config = providers.Configuration()
 
     # -------------------- Infrastructure --------------------
+
     env: providers.Singleton[Env] = providers.Singleton(
-        lambda path: Env().load(path).unwrap(),
+        env_provider_func,
         path=config.dotenv_path
     )
 
@@ -22,10 +41,8 @@ class Container(containers.DeclarativeContainer):
 
     connector: providers.Singleton[AIProvider] = providers.Singleton(
         OpenWebUIConnector,
-        base_url=providers.Callable(
-            lambda env: env.vars.get("OPENWEBUI_URL"), env),
-        token=providers.Callable(
-            lambda env: env.vars.get("OPENWEBUI_TOKEN"), env),
+        base_url=providers.Callable(get_from_env, env),
+        token=providers.Callable(get_from_env, env),
     )
 
     logger = providers.Singleton(
@@ -33,8 +50,7 @@ class Container(containers.DeclarativeContainer):
         name="app",
         # config.project_root is a Path object from the dict,
         # so we can call .joinpath() on it directly
-        log_dir=providers.Callable(
-            lambda root: root.joinpath("logs"), config.project_root),
+        log_dir=providers.Callable(get_log_dir, config.project_root),
         logfile_size_limit_mb=config.logfile_size_limit_MB,
     )
 

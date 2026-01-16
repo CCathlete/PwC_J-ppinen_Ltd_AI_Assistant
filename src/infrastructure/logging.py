@@ -1,5 +1,9 @@
 import logging
 from pathlib import Path
+from typing import TypeAlias
+
+Logger: TypeAlias = logging.Logger
+
 
 # The file handler class doesn't go well with data classes.
 class TruncatingFileHandler(logging.FileHandler):
@@ -13,7 +17,7 @@ class TruncatingFileHandler(logging.FileHandler):
     ) -> None:
         self.max_bytes: int = max_bytes
         filename.parent.mkdir(parents=True, exist_ok=True)
-        
+
         super().__init__(
             filename=str(filename),
             mode=mode,
@@ -29,6 +33,7 @@ class TruncatingFileHandler(logging.FileHandler):
             super().emit(record)
         except Exception:
             self.handleError(record)
+
 
 def create_logger(
     *,

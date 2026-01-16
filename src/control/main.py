@@ -12,7 +12,7 @@ def main() -> None:
         "kb_root": Path("knowledge_bases"),
         "dotenv_path": Path(".env"),
         "lock_dir": Path("/tmp"),
-        "project_root": Path(__file__).parent.parent,
+        "project_root": Path(__file__).parents[2],
         "logfile_size_limit_MB": 10,
     }
 

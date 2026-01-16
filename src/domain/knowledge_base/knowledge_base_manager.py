@@ -57,7 +57,7 @@ class KnowledgeBaseManager:
         @future_safe
         async def embed_file(file: Path, kb_id_future: FutureResult[str, Exception] = kb_id_future) -> None:
             try:
-                # Result is the unwrapped state of the Future
+                # Result is the unwrapped state of the Future.
                 io_res: IOResult[str, Exception] = await kb_id_future.awaitable()
 
                 match io_res:

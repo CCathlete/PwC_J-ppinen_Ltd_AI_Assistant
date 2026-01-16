@@ -6,6 +6,8 @@ from typing import Protocol
 from dataclasses import dataclass
 from returns.future import FutureResult, future_safe
 
+from .logging import Logger
+
 
 @dataclass(frozen=True)
 class AIProvider(Protocol):
@@ -14,7 +16,7 @@ class AIProvider(Protocol):
     base_url: str
     token: str
 
-    def _headers(self) -> dict:
+    def _headers(self) -> dict[str, str]:
         ...
 
     def create_kb(self, name: str, description: str, public: bool) -> FutureResult[str, Exception]:
@@ -25,14 +27,16 @@ class AIProvider(Protocol):
         """Upload a file and attach it to a KB."""
         ...
 
+
 @dataclass(frozen=True)
 class OpenWebUIConnector(AIProvider):
     """Encapsulates HTTP logic to create KBs and embed files."""
 
     base_url: str
     token: str
+    logger: Logger
 
-    def _headers(self) -> dict:
+    def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.token}"}
 
     def create_kb(self, name: str, description: str, public: bool) -> FutureResult[str, Exception]:
@@ -41,16 +45,18 @@ class OpenWebUIConnector(AIProvider):
         async def _() -> str:
             async with httpx.AsyncClient() as client:
 
-
                 r: Response = await client.post(
                     f"{self.base_url}/api/v1/knowledge/",
-                    headers={**self._headers(), "Content-Type": "application/json"},
-                    json={"name": name, "description": description, "public": public},
+                    headers={
+                        **self._headers(), "Content-Type": "application/json"},
+                    json={"name": name, "description": description,
+                          "public": public},
                 )
                 r.raise_for_status()
 
                 # return r.json()["id"]
-                return name # Using the name of the KB as its id if creation was successful.
+                # Using the name of the KB as its id if creation was successful.
+                return name
 
         return _()
 
@@ -72,10 +78,10 @@ class OpenWebUIConnector(AIProvider):
                 # Attach to KB
                 r2: Response = await client.post(
                     f"{self.base_url}/api/v1/knowledge/{kb_id}/file/add",
-                    headers={**self._headers(), "Content-Type": "application/json"},
+                    headers={
+                        **self._headers(), "Content-Type": "application/json"},
                     json={"file_id": file_id},
                 )
                 r2.raise_for_status()
 
         return _()
-
