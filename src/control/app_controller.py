@@ -18,6 +18,8 @@ class AppController:
     kb_root: Path
     dotenv_path: Path
     lock_dir: Path
+    project_root: Path
+    logfile_size_limit_MB: int
     logger: logging.Logger
 
     def serve_openwebui_process(self) -> Process:
@@ -43,18 +45,22 @@ class AppController:
             )
         except subprocess.CalledProcessError as e:
             self.logger.error(
-                f"OpenWebUI process exited with error code {e.returncode}")
+                f"OpenWebUI process failed (Port already in use or crash). Code: {e.returncode}")
         except Exception:
-            self.logger.exception("Unexpected crash in OpenWebUI process")
+            self.logger.exception("Unexpected error in OpenWebUI process")
 
     def _run_ingestion(self) -> None:
         try:
             self.logger.info("Starting KB ingestion process")
 
+            # Re-initialize and re-configure the container inside the new process memory space
             container = Container()
-            container.config.kb_root.from_value(self.kb_root)
-            container.config.dotenv_path.from_value(self.dotenv_path)
-            container.config.project_root
+            container.config.from_dict({
+                "kb_root": self.kb_root,
+                "dotenv_path": self.dotenv_path,
+                "project_root": self.project_root,
+                "logfile_size_limit_MB": self.logfile_size_limit_MB
+            })
 
             shutdown = ShutdownCoordinator()
             shutdown.install_signal_handlers()
@@ -68,15 +74,11 @@ class AppController:
                         )
                         await result.awaitable()
                     except Exception:
-                        self.logger.exception(
-                            "Internal error during KB ingestion loop")
+                        self.logger.exception("Error during KB ingestion loop")
 
                     await asyncio.sleep(1)
 
             asyncio.run(resilient_loop())
-
         except Exception:
             self.logger.exception(
-                "KBIngestion process failed during initialization")
-        finally:
-            self.logger.info("KB ingestion process shutdown")
+                "KBIngestion process crashed during initialization")
