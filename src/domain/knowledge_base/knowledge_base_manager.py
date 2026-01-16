@@ -2,12 +2,15 @@
 import logging
 from pathlib import Path
 from dataclasses import dataclass
-from returns.io import IOFailure, IOResult
+from returns.io import IOResult, IOSuccess, IOFailure
 from returns.future import FutureResult, future_safe
+from returns.result import Success, Failure
+
 
 from .kb_config import KnowledgeBaseConfig
 from ...infrastructure.fs import IFileSystem
 from ...infrastructure.openwebui_connector import AIProvider
+
 
 @dataclass(frozen=True)
 class KnowledgeBaseManager:
@@ -31,7 +34,8 @@ class KnowledgeBaseManager:
         try:
             config = KnowledgeBaseConfig.load(folder / "kbconfig.yaml")
         except Exception as e:
-            self.logger.exception("Failed to load kbconfig for folder '%s': %s", folder, e)
+            self.logger.exception(
+                "Failed to load kbconfig for folder '%s': %s", folder, e)
             return []
 
         kb_name = config.name
@@ -53,38 +57,32 @@ class KnowledgeBaseManager:
         @future_safe
         async def embed_file(file: Path, kb_id_future: FutureResult[str, Exception] = kb_id_future) -> None:
             try:
-                # After awaiting the future monad it returns a static monad so instead 
-                # of FutureResult we get IOResult.
-                # NOTE: We're awaiting here because we don't want to proceed before the kb is created.
+                # Result is the unwrapped state of the Future
                 io_res: IOResult[str, Exception] = await kb_id_future.awaitable()
 
                 match io_res:
-                    case IOResult(success=value):
-                        kb_id: str = value
+                    case IOSuccess(Success(kb_id)):
                         await self.connector.embed_file(kb_id, file).awaitable()
                         embedded.add(file.name)
 
-                    case IOFailure(failure=e):
+                    case IOFailure(Failure(e)):
                         self.logger.exception(
-                            "Failed to create KB for folder '%s': %s", folder, e
+                            "Failed to create/resolve KB for folder '%s': %s", folder, e
                         )
-
-                    case _:
-                        pass  # exhaustive catch-all
+                    case _: pass
 
             except Exception as e:
                 self.logger.exception(
                     "Failed to embed file '%s' in folder '%s': %s", file.name, folder, e
                 )
 
-
-        tasks: list[FutureResult[None, Exception]] = [embed_file(file) for file in files_to_embed]
+        tasks: list[FutureResult[None, Exception]] = [
+            embed_file(file) for file in files_to_embed]
 
         # Update embedded files immediately to track progress
         self._embedded_files[kb_name] = embedded
 
         return tasks
-
 
     def _embed_new_files(self, kb_id: str, folder: Path) -> list[FutureResult[None, Exception]]:
         """
@@ -98,7 +96,7 @@ class KnowledgeBaseManager:
 
         for file in files_to_embed:
             @future_safe
-            async def embed_file_safe(file=file) -> None:
+            async def embed_file_safe(file: Path = file) -> None:
                 try:
                     await self.connector.embed_file(kb_id, file).awaitable()
                     embedded.add(file.name)
@@ -111,4 +109,3 @@ class KnowledgeBaseManager:
 
         self._embedded_files[kb_id] = embedded
         return tasks
-

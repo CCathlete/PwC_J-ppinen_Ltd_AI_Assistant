@@ -44,6 +44,7 @@ class Container(containers.DeclarativeContainer):
         fs=fs,
         connector=connector,
         logger=logger,
+        _embedded_files=providers.Object({}),
     )
 
     # -------------------- Application --------------------
