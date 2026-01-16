@@ -6,6 +6,10 @@ This repository contains the terraform infra setup, UI server and ingestion engi
 
 The project follows a hexagonal architecture, strictly adhering to functional programming principles, immutability, and monadic error handling.
 
+<p align="center">
+  <img src="architecture/embedding_server_app.png">
+</p>
+
 ### <span style="color:#D35400">1. Infrastructure Layer</span>
 
 Provides low-level technical capabilities as singleton dependencies:
