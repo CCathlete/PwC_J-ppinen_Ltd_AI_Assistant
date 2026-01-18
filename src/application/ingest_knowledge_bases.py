@@ -7,8 +7,8 @@ from returns.future import FutureResult, future_safe
 from returns.io import IOSuccess, IOFailure, IOResult
 from returns.result import Success, Failure
 
-from ..domain.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
-from ..infrastructure.env import Env
+from domain.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
+from infrastructure.env import Env
 
 
 @dataclass(frozen=True)

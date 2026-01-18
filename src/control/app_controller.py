@@ -1,4 +1,5 @@
 # src/control/app_controller.py
+import sys
 import signal
 import asyncio
 import logging
@@ -44,12 +45,15 @@ class AppController:
         signal.signal(signal.SIGTERM, handle_signal)
 
         self.logger.info("Starting OpenWebUI watchdog loop")
+        
+        bin_dir: Path = Path(sys.executable).parent
+        openwebui: Path = bin_dir / "open-webui"
 
         while running:
             try:
                 # Running without capture_output to see the server logs
                 subprocess.run(
-                    ["open-webui", "serve", "--host", "0.0.0.0", "--port", "3000"],
+                    [str(openwebui), "serve", "--host", "0.0.0.0", "--port", "3000"],
                     check=True
                 )
             except subprocess.CalledProcessError as e:

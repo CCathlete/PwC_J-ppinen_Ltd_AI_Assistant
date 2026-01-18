@@ -1,11 +1,13 @@
 # src/control/main.py
-from pathlib import Path
-from typing import Any
 import logging
+from typing import Any
+from pathlib import Path
+from dotenv import load_dotenv
 from returns.result import Success, Result
+
 from .app_controller import AppController
 from .dependency_container import Container
-
+load_dotenv()
 
 def main() -> None:
     config: dict[str, Any] = {

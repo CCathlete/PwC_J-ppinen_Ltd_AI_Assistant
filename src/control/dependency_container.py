@@ -2,12 +2,12 @@
 from pathlib import Path
 from dependency_injector import containers, providers
 
-from ..infrastructure.env import Env
-from ..infrastructure.logging import create_logger
-from ..infrastructure.fs import FileSystem, IFileSystem
-from ..infrastructure.openwebui_connector import AIProvider, OpenWebUIConnector
-from ..application.ingest_knowledge_bases import KnowledgeBaseIngestionProcess
-from ..domain.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
+from infrastructure.env import Env
+from infrastructure.logging import create_logger
+from infrastructure.fs import FileSystem, IFileSystem
+from infrastructure.openwebui_connector import AIProvider, OpenWebUIConnector
+from application.ingest_knowledge_bases import KnowledgeBaseIngestionProcess
+from domain.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
 
 # ------------------------ Factory / Provider functions ------
 
